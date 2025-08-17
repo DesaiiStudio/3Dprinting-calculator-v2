@@ -220,12 +220,12 @@ el.file?.addEventListener('change', async (e) => {
 
 /* ===== Drag & Drop ===== */
 if (el.dropZone) {
-  ['dragenter','dragover'].forEach(evt =>
+  ['dragenter','dragover'].forEach((evt) =>
     el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='0.85'; })
   );
-  ['dragleave','drop'].forEach evt =>
+  ['dragleave','drop'].forEach((evt) =>
     el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='1'; })
-  ;
+  );
   el.dropZone.addEventListener('drop', async (e) => {
     const items = e.dataTransfer?.items;
     let files = [];
@@ -242,6 +242,8 @@ if (el.dropZone) {
     if (!files.length) return;
     await addFiles(files);
   });
+  // make drop zone clickable
+  el.dropZone.addEventListener('click', () => el.file?.click());
 }
 
 /* ===================== ADD FILES ===================== */
