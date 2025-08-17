@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Instant Quote • 3D Printing</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- import map so addons can import 'three' by name -->
+  <!-- Import map so addons can import 'three' -->
   <script type="importmap">
   {
     "imports": {
@@ -14,10 +14,8 @@
     }
   }
   </script>
-  <!-- quiet the favicon 404 -->
   <link rel="icon" href="data:," />
   <style>
-    /* small extras so it looks tidy even without style.css tweaks */
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;margin:24px;color:#111}
     .container{max-width:1000px;margin:0 auto;display:grid;gap:20px}
     .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff}
@@ -27,7 +25,7 @@
     .btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
     .btn[disabled]{opacity:.45;cursor:not-allowed}
     .muted{color:#555}
-    ul.break{list-style: none; padding: 0; margin: 0}
+    ul.break{list-style:none;padding:0;margin:0}
     ul.break li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
     ul.break li strong{margin-left:12px}
     .total h2{margin:10px 0 0}
@@ -53,7 +51,7 @@
       <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
     </section>
 
-    <!-- 2) Settings (per your spec) -->
+    <!-- 2) Settings for estimator (no manual hours/min) -->
     <section class="card">
       <h2>2) Choose settings</h2>
       <div class="grid">
@@ -65,15 +63,22 @@
             <option value="PETG-CF">PETG-CF</option>
           </select>
         </label>
-
-        <label>Print hours
-          <input id="hours" type="number" min="0" step="1" value="0" />
+        <label>Quality (layer height)
+          <select id="quality">
+            <option value="draft">Draft (0.28 mm)</option>
+            <option value="standard" selected>Standard (0.20 mm)</option>
+            <option value="fine">Fine (0.12 mm)</option>
+          </select>
         </label>
-
-        <label>Print minutes
-          <input id="minutes" type="number" min="0" max="59" step="1" value="0" />
+        <label>Infill %
+          <input id="infill" type="number" min="0" max="100" step="1" value="15" />
         </label>
-
+        <label>Supports
+          <select id="supports">
+            <option value="no" selected>No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </label>
         <label>Quantity
           <input id="qty" type="number" min="1" value="1"/>
         </label>
@@ -82,7 +87,7 @@
       <button id="calcBtn" class="btn" disabled>Calculate price</button>
     </section>
 
-    <!-- 3) Output: ONLY total hours + total grams + pricing items -->
+    <!-- 3) Output (only hours + grams + pricing items) -->
     <section class="card">
       <h2>3) Price breakdown</h2>
       <ul id="summaryList" class="break"></ul>
