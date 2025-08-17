@@ -1,23 +1,21 @@
-// script.js — ES Module
-// Pricing rules implemented exactly as requested.
+// script.js — ES Module with your pricing rules
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-/* ======= MATERIAL TABLE (rate/baseFee + density for grams) ======= */
+/* ====== MATERIALS & RATES ====== */
 const MATERIALS = {
-  PLA:      { rate: 2.0, baseFee: 150, density_g_cm3: 1.24 },
-  PETG:     { rate: 2.4, baseFee: 160, density_g_cm3: 1.27 },
-  ABS:      { rate: 3.0, baseFee: 180, density_g_cm3: 1.04 }, // common ABS density
-  'PETG-CF':{ rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
+  PLA:       { rate: 2.0, baseFee: 150, density_g_cm3: 1.24 },
+  PETG:      { rate: 2.4, baseFee: 160, density_g_cm3: 1.27 },
+  ABS:       { rate: 3.0, baseFee: 180, density_g_cm3: 1.04 },
+  'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
-// small-order logic constants
-const SMALL_FEE_THRESHOLD = 250; // THB
-const SMALL_FEE_TAPER     = 400; // THB
-const PRINT_RATE_PER_HOUR = 10;  // THB/hr
+const SMALL_FEE_THRESHOLD = 250;
+const SMALL_FEE_TAPER     = 400;
+const PRINT_RATE_PER_HOUR = 10;
 
-/* ======= DOM ======= */
+/* ====== DOM ====== */
 const $ = (id) => document.getElementById(id);
 const el = {
   file: $('stlFile'),
@@ -33,24 +31,29 @@ const el = {
   canvas: $('viewer')
 };
 
-/* ======= THREE viewer ======= */
+/* ====== Viewer ====== */
 let renderer, scene, camera, controls, mesh;
+
 initViewer();
 
 function initViewer() {
   const canvas = el.canvas;
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  sizeViewer();
-  window.addEventListener('resize', sizeViewer);
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0f1115);
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.0); key.position.set(1,1,1);
+  const key = new THREE.DirectionalLight(0xffffff, 1.0);
+  key.position.set(1,1,1);
   scene.add(key, new THREE.AmbientLight(0xffffff, 0.45));
 
-  camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.1, 10000);
+  // create the camera BEFORE first size call
+  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
   camera.position.set(120,120,120);
+
+  // now safe to size renderer + update camera
+  sizeViewer();
+  window.addEventListener('resize', sizeViewer);
 
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -58,25 +61,23 @@ function initViewer() {
   animate();
 }
 function sizeViewer() {
+  if (!renderer) return;
   const canvas = renderer.domElement;
   const w = (canvas.parentElement?.clientWidth || 900);
   const h = Math.max(320, Math.floor(w * 0.55));
   renderer.setSize(w, h, false);
+  if (!camera) return;                 // guard against early calls
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
+  controls?.update();
+  renderer?.render(scene, camera);
 }
 
-/* ======= STL parsing & metrics ======= */
-let model = {
-  volume_mm3: 0,  // from STL
-  grams: 0,       // computed per material when calculating
-  bbox: {x:0,y:0,z:0}
-};
+/* ====== STL metrics ====== */
+let model = { volume_mm3: 0, grams: 0, bbox: {x:0,y:0,z:0} };
 
 el.file.addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
@@ -91,9 +92,8 @@ el.file.addEventListener('change', async (e) => {
 
   try {
     const buf = await file.arrayBuffer();
-    const geo = new STLLoader().parse(buf);
-
-    const g = geo.isBufferGeometry ? geo : new THREE.BufferGeometry().fromGeometry(geo);
+    const parsed = new STLLoader().parse(buf);
+    const g = parsed.isBufferGeometry ? parsed : new THREE.BufferGeometry().fromGeometry(parsed);
     g.computeBoundingBox(); g.computeVertexNormals();
 
     model.volume_mm3 = computeVolume(g);
@@ -104,7 +104,6 @@ el.file.addEventListener('change', async (e) => {
     };
 
     renderMesh(g);
-    // Ready to price
     el.calcBtn.disabled = false;
   } catch (err) {
     console.error('STL parse failed:', err);
@@ -115,7 +114,10 @@ el.file.addEventListener('change', async (e) => {
 
 function renderMesh(geo) {
   if (mesh) scene.remove(mesh);
-  mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x5ad, metalness: 0.1, roughness: 0.85 }));
+  mesh = new THREE.Mesh(
+    geo,
+    new THREE.MeshStandardMaterial({ color: 0x5ad, metalness: 0.1, roughness: 0.85 })
+  );
   scene.add(mesh);
 
   const box = new THREE.Box3().setFromObject(mesh);
@@ -128,22 +130,21 @@ function renderMesh(geo) {
   camera.lookAt(center);
 }
 
-// signed volume from triangles (mm^3)
-function computeVolume(bufferGeo) {
-  const p = bufferGeo.attributes.position.array;
+// signed volume (mm^3)
+function computeVolume(geo) {
+  const a = geo.attributes.position.array;
   let v = 0;
-  for (let i = 0; i < p.length; i += 9) {
-    const ax=p[i], ay=p[i+1], az=p[i+2];
-    const bx=p[i+3], by=p[i+4], bz=p[i+5];
-    const cx=p[i+6], cy=p[i+7], cz=p[i+8];
+  for (let i = 0; i < a.length; i += 9) {
+    const ax=a[i], ay=a[i+1], az=a[i+2];
+    const bx=a[i+3], by=a[i+4], bz=a[i+5];
+    const cx=a[i+6], cy=a[i+7], cz=a[i+8];
     v += (ax*by*cz + bx*cy*az + cx*ay*bz - ax*cy*bz - bx*ay*cz - cx*by*az);
   }
   return Math.abs(v) / 6;
 }
 
-/* ======= Pricing per your spec ======= */
+/* ====== Pricing (your spec) ====== */
 el.calcBtn.addEventListener('click', () => {
-  // inputs
   const filament = el.material.value;
   const qty = Math.max(1, Number(el.qty.value || 1));
   const hrs = Math.max(0, Number(el.hours.value || 0));
@@ -151,26 +152,17 @@ el.calcBtn.addEventListener('click', () => {
 
   const mat = MATERIALS[filament];
 
-  // weight (grams) from STL volume & material density
-  // volume_cm3 = volume_mm3 / 1000
   const gramsPerPart = (model.volume_mm3 / 1000) * mat.density_g_cm3;
   const totalGrams = gramsPerPart * qty;
 
-  // time
   const totalMinutes = qty * (hrs * 60 + mins);
   const totalHours = totalMinutes / 60;
 
-  // 1) Material fee
   const materialCost = totalGrams * mat.rate;
-
-  // 2) Printing time fee
   const printCost = totalHours * PRINT_RATE_PER_HOUR;
-
-  // 3) Subtotal
   const subtotal = materialCost + printCost;
 
-  // 4) Small order fee
-  let smallOrderFee = 0;
+  let smallOrderFee;
   if (subtotal <= SMALL_FEE_THRESHOLD) {
     smallOrderFee = mat.baseFee;
   } else {
@@ -178,24 +170,19 @@ el.calcBtn.addEventListener('click', () => {
     smallOrderFee = Math.max(mat.baseFee - reduction, 0);
   }
 
-  // 5) Final price (ceil)
-  const totalPrice = subtotal + smallOrderFee;
-  const finalPrice = Math.ceil(totalPrice);
+  const finalPrice = Math.ceil(subtotal + smallOrderFee);
 
-  // render summary (ONLY hours + grams + items requested)
   el.summary.innerHTML = `
     <li><span>Filament</span><strong>${filament}</strong></li>
-    <li><span>Total used</span><strong>${round(totalGrams, 2)} g</strong></li>
+    <li><span>Total used</span><strong>${round(totalGrams,2)} g</strong></li>
     <li><span>Total time</span><strong>${Math.floor(totalHours)} h ${Math.round((totalHours%1)*60)} m</strong></li>
     <li><span>Printing fee</span><strong>${round(materialCost + printCost, 2)} THB</strong></li>
     <li><span>Small order fee</span><strong>${round(smallOrderFee, 2)} THB</strong></li>
   `;
   el.grandTotal.innerHTML = `<div class="total"><h2>Total price: ${finalPrice} THB</h2></div>`;
 
-  // enable download
   const payload = {
-    filament,
-    quantity: qty,
+    filament, quantity: qty,
     gramsPerPart: round(gramsPerPart,2),
     totalGrams: round(totalGrams,2),
     time: { hours: Math.floor(totalHours), minutes: Math.round((totalHours%1)*60) },
@@ -213,7 +200,7 @@ el.calcBtn.addEventListener('click', () => {
   };
 });
 
-/* ======= helpers ======= */
+/* ====== helpers ====== */
 function round(n,d){return Math.round(n*10**d)/10**d}
 function resetOutputs(){
   el.summary.innerHTML = '';
