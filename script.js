@@ -52,6 +52,12 @@ const el = {
 /* ===================== VIEWER ===================== */
 let renderer, scene, camera, controls, mesh;
 
+/* ===================== VIEWER ===================== */
+let renderer, scene, camera, controls, mesh;
+
+// axis overlay
+let axisScene, axisCamera, axisHelper;
+
 initViewer();
 
 function initViewer() {
@@ -75,19 +81,33 @@ function initViewer() {
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
 
+  // --- axis widget ---
+  axisScene = new THREE.Scene();
+  axisCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  axisCamera.up = camera.up; // match main cam up
+  axisCamera.position.set(0,0,5);
+  axisHelper = new THREE.AxesHelper(40); // size of the axes
+  axisScene.add(axisHelper);
+
   animate();
 }
-function sizeViewer() {
-  if (!renderer) return;
-  const canvas = renderer.domElement;
-  const w = (canvas.parentElement?.clientWidth || 900);
-  const h = Math.max(320, Math.floor(w * 0.55));
-  renderer.setSize(w, h, false);
-  if (!camera) return;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-}
+
 function animate() {
+  requestAnimationFrame(animate);
+  controls?.update();
+
+  // main render
+  renderer?.render(scene, camera);
+
+  // axis overlay (bottom-left)
+  const insetSize = 100; // px size of axis viewport
+  renderer.clearDepth(); // allow overlay
+  axisCamera.quaternion.copy(camera.quaternion); // follow rotation
+  renderer.setViewport(10, 10, insetSize, insetSize);
+  renderer.setScissor(10, 10, insetSize, insetSize);
+  renderer.setScissorTest(true);
+  renderer.render(axisScene, axisCamera);
+  renderer.setScissorTest(false); // reset
   requestAnimationFrame(animate);
   controls?.update();
   renderer?.render(scene, camera);
