@@ -84,9 +84,9 @@ function animate() {
 }
 
 /* ========= STL load & measure ========= */
-let currentMetrics = null; // { volume_mm3, bbox: {x,y,z}, triangles }
+let currentMetrics = null; // { volume_mm3, bbox: {x,y,z} }
 
-fileInput.addEventListener('change', async (e) => {
+fileInput?.addEventListener('change', async (e) => {
   const file = e.target.files?.[0];
   resetOutputs();
   if (!file) return;
@@ -198,7 +198,7 @@ function calculatePrice(metrics) {
   const per_part_total = with_vat;
   const grand_total = per_part_total * qty;
 
-  const breakdown = {
+  return {
     inputs: {
       material: materialSel.value,
       density_g_cm3: mat.density_g_cm3,
@@ -222,4 +222,67 @@ function calculatePrice(metrics) {
       material_cost: round(material_cost, 2),
       machine_cost: round(machine_cost, 2),
       post_process_fee: round(ops_fee, 2),
-      subtotal_after_min_threshold: round(subtotal,
+      subtotal_after_min_threshold: round(subtotal, 2),
+      margin_pct: round(margin_pct, 2),
+      vat_pct: round(vat_pct, 2)
+    },
+    totals: {
+      per_part_total: round(per_part_total, 2),
+      grand_total: round(grand_total, 2),
+      quantity: qty
+    }
+  };
+}
+
+/* ========= UI helpers ========= */
+function showMetrics(m) {
+  metricsEl.innerHTML = `
+    <p><strong>Volume:</strong> ${round(m.volume_mm3/1000,2)} cm³</p>
+    <p><strong>Bounding box (mm):</strong> ${round(m.bbox.x,2)} × ${round(m.bbox.y,2)} × ${round(m.bbox.z,2)}</p>
+  `;
+}
+function showBreakdown(bd) {
+  breakdownEl.innerHTML = `
+    <h4>Inputs</h4>
+    <pre>${JSON.stringify(bd.inputs, null, 2)}</pre>
+    <h4>Metrics</h4>
+    <pre>${JSON.stringify(bd.metrics, null, 2)}</pre>
+    <h4>Costs</h4>
+    <pre>${JSON.stringify(bd.costs, null, 2)}</pre>
+  `;
+  totalEl.innerHTML = `<h3>Total: ${bd.totals.grand_total.toFixed(2)} THB</h3>`;
+}
+
+/* ========= Events ========= */
+calcBtn?.addEventListener('click', () => {
+  if (!currentMetrics) return;
+  const bd = calculatePrice(currentMetrics);
+  showBreakdown(bd);
+  downloadBtn.disabled = false;
+
+  // allow download as JSON
+  downloadBtn.onclick = () => {
+    const blob = new Blob([JSON.stringify(bd, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'quote.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+});
+
+/* ========= Helpers ========= */
+function round(num, dec) {
+  return Math.round(num * Math.pow(10, dec)) / Math.pow(10, dec);
+}
+function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+function resetOutputs() {
+  metricsEl.innerHTML = "";
+  breakdownEl.innerHTML = "";
+  totalEl.innerHTML = "";
+  calcBtn.disabled = true;
+  downloadBtn.disabled = true;
+}
