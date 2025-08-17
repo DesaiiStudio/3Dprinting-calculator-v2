@@ -1,116 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Print Quote Estimator</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r148/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/stl-loader@1.0.0/index.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #121212;
-      color: white;
-      padding: 20px;
-    }
-    .container {
-      max-width: 700px;
-      margin: auto;
-      background: #1e1e1e;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    }
-    input, button, label {
-      margin: 10px 0;
-      display: block;
-    }
-    .output {
-      margin-top: 20px;
-      background: #2a2a2a;
-      padding: 15px;
-      border-radius: 5px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Printing Service</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h2>3D Print Quote Estimator</h2>
-    <label for="stlUpload">Upload STL File:</label>
-    <input type="file" id="stlUpload" accept=".stl" />
+  <header>
+    <h1>Welcome to My 3D Printing Service</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a href="quote.html">Get a Quote</a>
+    </nav>
+  </header>
 
-    <label for="infill">Infill Percentage (%): <span id="infillValue">15</span></label>
-    <input type="range" id="infill" min="0" max="100" value="15" />
+  <main>
+    <h2>Choose what you need</h2>
+    <p><a href="products.html">Browse Products</a> or <a href="quote.html">Upload STL for Quotation</a></p>
+  </main>
 
-    <label for="smallFee">Small Order Fee (THB):</label>
-    <input type="number" id="smallFee" value="30" />
+  <footer>
+    <p>© 2025 My 3D Printing Service</p>
+  </footer>
 
-    <label for="pricePerGram">Price Per Gram (THB):</label>
-    <input type="number" id="pricePerGram" value="5" />
-
-    <div class="output" id="result"></div>
-  </div>
-
-  <script>
-    const infillSlider = document.getElementById('infill');
-    const infillValue = document.getElementById('infillValue');
-    const result = document.getElementById('result');
-
-    infillSlider.addEventListener('input', () => {
-      infillValue.textContent = infillSlider.value;
-    });
-
-    document.getElementById('stlUpload').addEventListener('change', async function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        const loader = new THREE.STLLoader();
-        const geometry = loader.parse(event.target.result);
-        geometry.computeBoundingBox();
-        geometry.computeVertexNormals();
-
-        const volume = computeVolume(geometry);
-        const infill = parseFloat(infillSlider.value) / 100;
-        const density = 1.24; // g/cm3
-        const smallFee = parseFloat(document.getElementById('smallFee').value);
-        const pricePerGram = parseFloat(document.getElementById('pricePerGram').value);
-
-        const filamentVolume = volume * (0.3 + infill); // rough total material
-        const weight = (filamentVolume / 1000) * density; // cm3 to gram
-
-        const printSpeed = 1200; // mm3/min (rough average)
-        const printTime = (filamentVolume / printSpeed) * 1.2; // +20% overhead
-
-        const cost = smallFee + (weight * pricePerGram);
-
-        result.innerHTML = `
-          <strong>Estimated Results:</strong><br>
-          Printing Cost: <strong>${cost.toFixed(2)} THB</strong><br>
-          Weight: ${weight.toFixed(1)} grams<br>
-          Time: ${printTime.toFixed(1)} minutes
-        `;
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
-
-    function computeVolume(geometry) {
-      let position = geometry.attributes.position;
-      let volume = 0;
-      for (let i = 0; i < position.count; i += 3) {
-        const p1 = new THREE.Vector3().fromBufferAttribute(position, i);
-        const p2 = new THREE.Vector3().fromBufferAttribute(position, i + 1);
-        const p3 = new THREE.Vector3().fromBufferAttribute(position, i + 2);
-        volume += signedVolumeOfTriangle(p1, p2, p3);
-      }
-      return Math.abs(volume); // in mm3
-    }
-
-    function signedVolumeOfTriangle(p1, p2, p3) {
-      return p1.dot(p2.cross(p3)) / 6.0;
-    }
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
