@@ -1,29 +1,91 @@
-/* base */
-:root { --bg:#fff; --fg:#111; --sub:#555; --card:#f9f9fb; --line:#e5e7eb; }
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
-a{color:#0b6efb;text-decoration:none} a:hover{text-decoration:underline}
-h1,h2{line-height:1.2;margin:0 0 .5rem} h1{font-size:28px} h2{font-size:22px}
-.muted{color:var(--sub)}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Instant Quote • 3D Printing</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Instant Quote</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="products.html">Products</a>
+      <a class="active" href="quote.html">Get a Quote</a>
+    </nav>
+  </header>
 
-/* layout */
-.site-header,.site-footer{max-width:1100px;margin:0 auto;padding:16px 20px}
-nav a{margin-right:14px}
-.container{max-width:1100px;margin:0 auto;padding:0 20px 40px;display:grid;gap:20px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.grid-3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-.p-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
-.p-card .ph{height:120px;background:#eef1f5;border-radius:8px;margin-bottom:8px}
+  <main class="container">
+    <!-- 1) Upload -->
+    <section class="card">
+      <h2>1) Upload your STL</h2>
+      <input id="stlFile" type="file" accept=".stl" />
+      <p class="muted">Max ~50MB. Units assumed <strong>mm</strong>.</p>
+      <div id="fileInfo" class="muted"></div>
+      <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
+    </section>
 
-/* viewer */
-.viewer-wrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px;background:#0f1115}
-#viewer{width:100%;height:360px;display:block}
+    <!-- 2) Settings -->
+    <section class="card">
+      <h2>2) Choose settings</h2>
+      <div class="grid">
+        <label>Material
+          <select id="material">
+            <option value="PLA">PLA</option>
+            <option value="PETG">PETG</option>
+            <option value="PETG-CF">PETG-CF</option>
+          </select>
+        </label>
+        <label>Quality (layer height)
+          <select id="quality">
+            <option value="standard">Standard (0.2 mm)</option>
+            <option value="fine">Fine (0.12 mm)</option>
+            <option value="draft">Draft (0.28 mm)</option>
+          </select>
+        </label>
+        <label>Infill %
+          <input id="infill" type="number" min="0" max="100" value="15"/>
+        </label>
+        <label>Supports
+          <select id="supports">
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </label>
+        <label>Quantity
+          <input id="qty" type="number" min="1" value="1"/>
+        </label>
+      </div>
 
-/* buttons */
-.btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
-.btn.secondary{background:#f8f8f8;color:#111;border-color:#c8c8c8}
-.btn[disabled]{opacity:.45;cursor:not-allowed}
-.mt{margin-top:10px}
-pre{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto}
-.total h3{margin-top:10px}
+      <details class="mt">
+        <summary><strong>Advanced pricing variables</strong> (temp on client)</summary>
+        <div class="grid mt">
+          <label>Base fee (THB)<input id="baseFee" type="number" step="1" value="50"/></label>
+          <label>Machine cost / hr (THB)<input id="machHr" type="number" step="1" value="60"/></label>
+          <label>Post-process fee / part (THB)<input id="ppFee" type="number" step="1" value="10"/></label>
+          <label>Min order threshold (THB)<input id="minThresh" type="number" step="1" value="250"/></label>
+          <label>Profit margin %<input id="margin" type="number" step="1" value="30"/></label>
+          <label>VAT %<input id="vat" type="number" step="0.1" value="7"/></label>
+        </div>
+      </details>
+
+      <button id="calcBtn" class="btn mt" disabled>Calculate price</button>
+    </section>
+
+    <!-- 3) Output -->
+    <section class="card">
+      <h2>3) Price breakdown</h2>
+      <div id="metrics" class="metrics"></div>
+      <div id="breakdown" class="breakdown"></div>
+      <div id="total" class="total"></div>
+      <button id="downloadQuote" class="btn secondary mt" disabled>Download quote (.json)</button>
+    </section>
+  </main>
+
+  <footer class="site-footer">© 2025 My 3D Printing Service</footer>
+
+  <!-- One module only: it imports three.js and the loaders inside -->
+  <script type="module" src="script.js"></script>
+</body>
+</html>
