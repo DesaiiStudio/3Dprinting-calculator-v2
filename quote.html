@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Instant Quote • 3D Printing</title>
   <link rel="icon" href="data:," />
-
-  <!-- (optional) your site css -->
   <link rel="stylesheet" href="style.css" />
 
   <!-- Import map so addons can import 'three' by name -->
@@ -19,25 +17,29 @@
   }
   </script>
 
-  <!-- minimal inline styles to keep layout clean even without style.css -->
   <style>
-    :root { color-scheme: light; }
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;margin:24px;color:#111}
-    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
     nav a{margin-right:12px;color:#111;text-decoration:none}
     nav a.active{font-weight:600;text-decoration:underline}
-    .container{max-width:1000px;margin:0 auto;display:grid;gap:20px}
+    .container{max-width:1100px;margin:0 auto;display:grid;gap:20px}
     .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-    .viewer-wrap{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#0f1115;margin-top:10px}
+    .viewer-wrap{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#f3f4f6;margin-top:10px}
     #viewer{width:100%;height:360px;display:block}
-    .btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
-    .btn[disabled]{opacity:.45;cursor:not-allowed}
     .muted{color:#555}
+    .btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
+    .grid-head{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;font-size:12px;color:#6b7280;padding:2px 0}
+    .file-row{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;align-items:center;border-bottom:1px dashed #e5e7eb;padding:8px 0}
+    .col-label{font-size:12px;color:#6b7280}
+    .mini{font-size:12px;color:#6b7280}
+    .price-chip{font-weight:700}
+    .pill{display:inline-block;padding:6px 10px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer}
+    .select, .number, .short{width:100%}
+    .short{max-width:90px}
     ul.break{list-style:none;padding:0;margin:0}
     ul.break li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
-    ul.break li strong{margin-left:12px}
     footer{margin-top:24px;color:#666}
+    #dropZone{ text-align:center;padding:18px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:12px }
   </style>
 </head>
 <body>
@@ -51,58 +53,31 @@
   </header>
 
   <main class="container">
-    <!-- 1) Upload -->
+    <!-- 1) Upload & Viewer -->
     <section class="card">
       <h2>1) Upload your STL files</h2>
       <input id="stlFile" type="file" accept=".stl" multiple />
-      <p class="muted">Select one or more .stl files. Max ~50MB each. Units assumed <b>mm</b>.</p>
-      <div id="fileInfo" class="muted"></div>
+      <p class="muted">Drag & drop supported. Units assumed <b>mm</b>.</p>
+      <div id="dropZone">Drag & drop .stl files here</div>
+      <div id="fileInfo" class="muted" style="margin-top:8px;"></div>
       <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
     </section>
 
-    <!-- Selected files list (auto-filled) -->
+    <!-- 2) Per-file settings & prices -->
     <section class="card" id="fileListWrap" style="display:none;">
-      <h3>Selected models</h3>
+      <h2>2) Models & settings</h2>
+      <div class="grid-head">
+        <div>Preview</div>
+        <div>Model</div>
+        <div>Settings</div>
+        <div>Qty</div>
+        <div>Price (THB)</div>
+        <div></div>
+      </div>
       <div id="fileList"></div>
     </section>
 
-    <!-- 2) Settings shared for this quote -->
-    <section class="card">
-      <h2>2) Choose settings</h2>
-      <div class="grid">
-        <label>Filament
-          <select id="material">
-            <option value="PLA">PLA</option>
-            <option value="PETG">PETG</option>
-            <option value="ABS">ABS</option>
-            <option value="PETG-CF">PETG-CF</option>
-          </select>
-        </label>
-
-        <label>Quality (layer height)
-          <select id="quality">
-            <option value="draft">Draft (0.28 mm)</option>
-            <option value="standard" selected>Standard (0.20 mm)</option>
-            <option value="fine">Fine (0.12 mm)</option>
-          </select>
-        </label>
-
-        <label>Infill %
-          <input id="infill" type="number" min="0" max="100" step="1" value="15" />
-        </label>
-
-        <label>Supports
-          <select id="supports">
-            <option value="no" selected>No</option>
-            <option value="yes">Yes</option>
-          </select>
-        </label>
-      </div>
-
-      <button id="calcBtn" class="btn" disabled>Calculate price</button>
-    </section>
-
-    <!-- 3) Output -->
+    <!-- 3) Totals -->
     <section class="card">
       <h2>3) Price breakdown</h2>
       <ul id="summaryList" class="break"></ul>
@@ -113,7 +88,7 @@
 
   <footer>© 2025 Your 3D Printing Service</footer>
 
-  <!-- App script (ES module) -->
+  <!-- App script -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
