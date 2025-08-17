@@ -4,9 +4,10 @@
 console.log("[INIT] script.js module starting…");
 
 // ----- Import three.js + helpers -----
-  import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
-  import { OrbitControls } from 'https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js';
-  import { STLLoader } from 'https://unpkg.com/three@0.161.0/examples/jsm/loaders/STLLoader.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
 
   window.THREE = THREE;
   window.THREE.OrbitControls = OrbitControls;
