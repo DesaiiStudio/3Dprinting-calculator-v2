@@ -1,4 +1,5 @@
-// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails (fix: empty state + +10% light)
+// script.js — multi-file quote tool with per-file settings, auto-calc, drag&drop, thumbnails
+// Viewer: light gray bg, orange model, +10% brighter lights, and bottom-left axis widget
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -12,13 +13,14 @@ const MATERIALS = {
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
 
-// Speeds from your targets (line width 0.45): 150/90/60 mm/s → mm³/min
+// Your speed targets (mm/s) converted to volumetric (mm³/min) using lw=0.45 and lh per profile
+// Draft 150@0.28 → 1134; Standard 90@0.20 → 486; Fine 60@0.12 → 194
 const QUALITY_SPEED = { draft: 1134, standard: 486, fine: 194 };
 
-// Estimation knobs (grams)
+// Grams estimator
 const SHELL_BASE = 0.70;
 const INFILL_PORTION = 1.0 - SHELL_BASE;
-const CALIBRATION_MULT = 2.02;
+const CALIBRATION_MULT = 2.02;   // tune with your slicer feedback
 const WASTE_GRAMS_PER_PART = 2.0;
 const SUPPORT_MASS_MULT = 1.25;
 
@@ -27,8 +29,8 @@ const INFILL_TIME_MULT  = (p) => 0.85 + (clamp(p, 0, 100)/100) * 0.60;
 const SUPPORT_TIME_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
 
 // Prep overhead
-const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // 6m14s
-const PREP_IS_PER_PART = false;
+const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // 6m14s ≈ 6.2333
+const PREP_IS_PER_PART = false;          // set true if each part is its own separate print
 
 // Pricing
 const SMALL_FEE_THRESHOLD = 250;
@@ -49,10 +51,7 @@ const el = {
   canvas: $('viewer')
 };
 
-/* ===================== VIEWER ===================== */
-let renderer, scene, camera, controls, mesh;
-
-/* ===================== VIEWER ===================== */
+/* ===================== VIEWER (with axis widget) ===================== */
 let renderer, scene, camera, controls, mesh;
 
 // axis overlay
@@ -63,6 +62,7 @@ initViewer();
 function initViewer() {
   const canvas = el.canvas;
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf3f4f6); // light gray
 
@@ -84,33 +84,42 @@ function initViewer() {
   // --- axis widget ---
   axisScene = new THREE.Scene();
   axisCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-  axisCamera.up = camera.up; // match main cam up
+  axisCamera.up = camera.up; // keep same "up"
   axisCamera.position.set(0,0,5);
-  axisHelper = new THREE.AxesHelper(40); // size of the axes
+  axisHelper = new THREE.AxesHelper(40); // red=X, green=Y, blue=Z
   axisScene.add(axisHelper);
 
   animate();
 }
-
+function sizeViewer() {
+  if (!renderer) return;
+  const canvas = renderer.domElement;
+  const w = (canvas.parentElement?.clientWidth || 900);
+  const h = Math.max(320, Math.floor(w * 0.55));
+  renderer.setSize(w, h, false);
+  if (!camera) return;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
 function animate() {
   requestAnimationFrame(animate);
   controls?.update();
 
-  // main render
-  renderer?.render(scene, camera);
+  // Full-canvas viewport for main scene
+  const d = renderer.domElement;
+  renderer.setViewport(0, 0, d.width, d.height);
+  renderer.setScissorTest(false);
+  renderer.render(scene, camera);
 
-  // axis overlay (bottom-left)
-  const insetSize = 100; // px size of axis viewport
-  renderer.clearDepth(); // allow overlay
-  axisCamera.quaternion.copy(camera.quaternion); // follow rotation
-  renderer.setViewport(10, 10, insetSize, insetSize);
-  renderer.setScissor(10, 10, insetSize, insetSize);
+  // Axis overlay (bottom-left)
+  const inset = 100; // px
+  renderer.clearDepth();
+  axisCamera.quaternion.copy(camera.quaternion); // follow camera rotation
+  renderer.setViewport(10, 10, inset, inset);
+  renderer.setScissor(10, 10, inset, inset);
   renderer.setScissorTest(true);
   renderer.render(axisScene, axisCamera);
-  renderer.setScissorTest(false); // reset
-  requestAnimationFrame(animate);
-  controls?.update();
-  renderer?.render(scene, camera);
+  renderer.setScissorTest(false);
 }
 function clearViewer() {
   if (mesh) {
@@ -119,7 +128,6 @@ function clearViewer() {
     mesh.material.dispose?.();
     mesh = null;
   }
-  // optional: reset camera/controls a bit
   controls?.target.set(0,0,0);
   camera?.position.set(120,120,120);
   renderer?.render(scene, camera);
@@ -174,7 +182,7 @@ async function addFiles(fileList) {
   let added = 0;
 
   for (const f of stls) {
-    if (models.some(m => m._sig === sigOf(f))) continue; // dedupe name+size
+    if (models.some(m => m._sig === sigOf(f))) continue; // dedupe by name+size
 
     try {
       const buf = await f.arrayBuffer();
@@ -189,7 +197,7 @@ async function addFiles(fileList) {
         z: g.boundingBox.max.z - g.boundingBox.min.z
       };
 
-      const thumbDataURL = await makeThumbnail(g); // uses clone internally
+      const thumbDataURL = await makeThumbnail(g); // uses cloned geometry internally
 
       const model = {
         id: idSeq++,
@@ -276,7 +284,7 @@ function addFileRow(model, geometryForPreview) {
   [['no','No'],['yes','Yes']].forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; supSel.appendChild(o); });
   supSel.value = model.supports;
 
-  // attach change listeners → update model + recalc
+  // change listeners → update model + recalc
   matSel.onchange = () => { model.material = matSel.value; recalc(); };
   qualSel.onchange = () => { model.quality = qualSel.value; recalc(); };
   infillIn.oninput = () => { model.infill = clamp(+infillIn.value||0,0,100); infillIn.value = String(model.infill); recalc(); };
@@ -314,7 +322,7 @@ function addFileRow(model, geometryForPreview) {
       el.summary.innerHTML = '';
       el.grandTotal.innerHTML = '';
       clearViewer();
-      updateInfo(); // show "No models selected"
+      updateInfo();
     } else {
       updateInfo();
       recalc();
@@ -358,14 +366,14 @@ async function makeThumbnail(geo) {
   const scn = new THREE.Scene();
   scn.background = new THREE.Color(0xf3f4f6);
 
-  // same +10% light vibe
+  // +10% brighter here too
   const light1 = new THREE.DirectionalLight(0xffffff, 1.1); light1.position.set(1,1,1);
   const amb = new THREE.AmbientLight(0xffffff, 0.495);
   scn.add(light1, amb);
 
   const cam = new THREE.PerspectiveCamera(50, w/h, 0.1, 10000);
 
-  const geoClone = geo.clone();
+  const geoClone = geo.clone(); // CLONE to avoid disposing the original geometry
   const m = new THREE.Mesh(geoClone, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
   scn.add(m);
 
@@ -424,7 +432,6 @@ function estimateForModel(m) {
     minutesTotal,
     materialCost, printCost,
     sub: materialCost + printCost,
-  // expose base fee for “max material baseFee” rule if needed later
     matBaseFee: mat.baseFee
   };
 }
@@ -476,7 +483,7 @@ function recalc() {
 
   const grandHours = grandMinutes / 60;
 
-  // apply small-order fee using HIGHEST baseFee among used materials
+  // Small-order fee: use HIGHEST baseFee among used materials
   const subtotal = grandSubtotal;
   let smallOrderFee;
   if (subtotal <= SMALL_FEE_THRESHOLD) {
