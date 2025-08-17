@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Instant Quote • 3D Printing</title>
   <link rel="icon" href="data:," />
+  <!-- Optional site stylesheet -->
   <link rel="stylesheet" href="style.css" />
 
   <!-- Import map so addons can import 'three' by name -->
@@ -17,7 +18,9 @@
   }
   </script>
 
+  <!-- Minimal inline styles so page looks OK without style.css -->
   <style>
+    :root { color-scheme: light; }
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;margin:24px;color:#111}
     header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
     nav a{margin-right:12px;color:#111;text-decoration:none}
@@ -28,18 +31,18 @@
     #viewer{width:100%;height:360px;display:block}
     .muted{color:#555}
     .btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
+    .btn[disabled]{opacity:.45;cursor:not-allowed}
+    #dropZone{ text-align:center;padding:18px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:12px }
     .grid-head{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;font-size:12px;color:#6b7280;padding:2px 0}
     .file-row{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;align-items:center;border-bottom:1px dashed #e5e7eb;padding:8px 0}
-    .col-label{font-size:12px;color:#6b7280}
     .mini{font-size:12px;color:#6b7280}
     .price-chip{font-weight:700}
     .pill{display:inline-block;padding:6px 10px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer}
-    .select, .number, .short{width:100%}
+    .select,.number,.short{width:100%}
     .short{max-width:90px}
     ul.break{list-style:none;padding:0;margin:0}
     ul.break li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
     footer{margin-top:24px;color:#666}
-    #dropZone{ text-align:center;padding:18px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:12px }
   </style>
 </head>
 <body>
@@ -63,7 +66,7 @@
       <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
     </section>
 
-    <!-- 2) Per-file settings & prices -->
+    <!-- 2) Per-file settings & inline prices -->
     <section class="card" id="fileListWrap" style="display:none;">
       <h2>2) Models & settings</h2>
       <div class="grid-head">
@@ -88,7 +91,7 @@
 
   <footer>© 2025 Your 3D Printing Service</footer>
 
-  <!-- App script -->
+  <!-- App script (ES module) -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
