@@ -1,5 +1,4 @@
-// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails (fixed)
-// Viewer: light gray bg; Model color: orange
+// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails (fix: empty state + +10% light)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -61,9 +60,11 @@ function initViewer() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf3f4f6); // light gray
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.0);
+  // +10% brighter lights
+  const key = new THREE.DirectionalLight(0xffffff, 1.1);
   key.position.set(1,1,1);
-  scene.add(key, new THREE.AmbientLight(0xffffff, 0.45));
+  const amb = new THREE.AmbientLight(0xffffff, 0.495);
+  scene.add(key, amb);
 
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
   camera.position.set(120,120,120);
@@ -89,6 +90,18 @@ function sizeViewer() {
 function animate() {
   requestAnimationFrame(animate);
   controls?.update();
+  renderer?.render(scene, camera);
+}
+function clearViewer() {
+  if (mesh) {
+    scene.remove(mesh);
+    mesh.geometry.dispose?.();
+    mesh.material.dispose?.();
+    mesh = null;
+  }
+  // optional: reset camera/controls a bit
+  controls?.target.set(0,0,0);
+  camera?.position.set(120,120,120);
   renderer?.render(scene, camera);
 }
 
@@ -156,7 +169,7 @@ async function addFiles(fileList) {
         z: g.boundingBox.max.z - g.boundingBox.min.z
       };
 
-      const thumbDataURL = await makeThumbnail(g); // uses CLONE now (fix)
+      const thumbDataURL = await makeThumbnail(g); // uses clone internally
 
       const model = {
         id: idSeq++,
@@ -183,7 +196,7 @@ async function addFiles(fileList) {
 
   if (added) {
     el.fileListWrap.style.display = 'block';
-    el.fileInfo.textContent = `Total models: ${models.length}`;
+    updateInfo();
     recalc();
   }
 }
@@ -277,9 +290,13 @@ function addFileRow(model, geometryForPreview) {
     row.remove();
     if (!models.length) {
       el.fileListWrap.style.display = 'none';
-      el.summary.innerHTML = ''; el.grandTotal.innerHTML = '';
       el.download.disabled = true;
+      el.summary.innerHTML = '';
+      el.grandTotal.innerHTML = '';
+      clearViewer();
+      updateInfo(); // show "No models selected"
     } else {
+      updateInfo();
       recalc();
     }
   };
@@ -312,7 +329,7 @@ function renderMesh(geo) {
   camera.lookAt(center);
 }
 
-/* ===================== THUMBNAIL (uses CLONED geometry — fix) ===================== */
+/* ===================== THUMBNAIL (clone-safe) ===================== */
 async function makeThumbnail(geo) {
   const w = 140, h = 100;
   const canvas = document.createElement('canvas');
@@ -321,13 +338,14 @@ async function makeThumbnail(geo) {
   const scn = new THREE.Scene();
   scn.background = new THREE.Color(0xf3f4f6);
 
-  const light1 = new THREE.DirectionalLight(0xffffff, 1.0); light1.position.set(1,1,1);
-  const amb = new THREE.AmbientLight(0xffffff, 0.45);
+  // same +10% light vibe
+  const light1 = new THREE.DirectionalLight(0xffffff, 1.1); light1.position.set(1,1,1);
+  const amb = new THREE.AmbientLight(0xffffff, 0.495);
   scn.add(light1, amb);
 
   const cam = new THREE.PerspectiveCamera(50, w/h, 0.1, 10000);
 
-  const geoClone = geo.clone(); // IMPORTANT: use a clone so we can safely dispose it
+  const geoClone = geo.clone();
   const m = new THREE.Mesh(geoClone, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
   scn.add(m);
 
@@ -343,10 +361,7 @@ async function makeThumbnail(geo) {
   r.render(scn, cam);
 
   const url = canvas.toDataURL('image/png');
-  // dispose CLONE only
-  m.geometry.dispose();
-  m.material.dispose();
-  r.dispose();
+  m.geometry.dispose(); m.material.dispose(); r.dispose();
   return url;
 }
 
@@ -389,6 +404,7 @@ function estimateForModel(m) {
     minutesTotal,
     materialCost, printCost,
     sub: materialCost + printCost,
+  // expose base fee for “max material baseFee” rule if needed later
     matBaseFee: mat.baseFee
   };
 }
@@ -399,6 +415,8 @@ function recalc() {
     el.summary.innerHTML = '';
     el.grandTotal.innerHTML = '';
     el.download.disabled = true;
+    updateInfo();
+    clearViewer();
     return;
   }
 
@@ -448,7 +466,7 @@ function recalc() {
     smallOrderFee = Math.max(maxBaseFee - reduction, 0);
   }
 
-  const finalPrice   = Math.ceil(subtotal + smallOrderFee);
+  const finalPrice = Math.ceil(subtotal + smallOrderFee);
 
   // UI summary
   el.summary.innerHTML = `
@@ -484,8 +502,13 @@ function recalc() {
     const a = document.createElement('a'); a.href = url; a.download = 'quote.json'; a.click();
     URL.revokeObjectURL(url);
   };
+
+  updateInfo();
 }
 
 /* ===================== HELPERS ===================== */
+function updateInfo() {
+  el.fileInfo.textContent = models.length ? `Total models: ${models.length}` : 'No models selected.';
+}
 function round(n,d){return Math.round(n*10**d)/10**d}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
