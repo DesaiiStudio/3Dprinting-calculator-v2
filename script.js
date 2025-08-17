@@ -286,3 +286,51 @@ function resetOutputs() {
   calcBtn.disabled = true;
   downloadBtn.disabled = true;
 }
+let renderer, scene, camera, controls, mesh;
+if (window.THREE) {
+  initViewer();
+} else {
+  console.warn("THREE not loaded; viewer disabled. Pricing still works.");
+}
+fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  resetOutputs();
+  if (!file) return;
+
+  if (!file.name.toLowerCase().endsWith(".stl")) {
+    fileInfo.textContent = "Please choose a .stl file.";
+    return;
+  }
+  fileInfo.textContent = `Selected: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    if (!window.THREE || !THREE.STLLoader) throw new Error("STLLoader missing");
+
+    const loader = new THREE.STLLoader();
+    const parsed = loader.parse(arrayBuffer);
+    const geo = parsed.isBufferGeometry ? parsed : new THREE.BufferGeometry().fromGeometry(parsed);
+    geo.computeBoundingBox();
+    geo.computeVertexNormals();
+
+    const volume_mm3 = computeVolume(geo);
+    const bbox = {
+      x: (geo.boundingBox.max.x - geo.boundingBox.min.x),
+      y: (geo.boundingBox.max.y - geo.boundingBox.min.y),
+      z: (geo.boundingBox.max.z - geo.boundingBox.min.z)
+    };
+
+    currentMetrics = { volume_mm3, bbox };
+    if (scene) renderMesh(geo);
+    showMetrics(currentMetrics);
+
+    calcBtn.disabled = false;            // <- important
+  } catch (err) {
+    console.error(err);
+    fileInfo.textContent = "Could not parse STL (viewer libs not loaded or file invalid).";
+    calcBtn.disabled = true;
+  }
+});
+window.addEventListener('error', (e) => {
+  console.log("JS error:", e.message);
+});
