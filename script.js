@@ -171,8 +171,15 @@ el.calcBtn.addEventListener('click', () => {
   const qty = Math.max(1, +el.qty.value || 1);
 
   // 1) grams (uses STL volume, material density and fill factor)
-  const gramsPerPart = (model.volume_mm3 / 1000) * mat.density_g_cm3 * MASS_FACTOR(infill);
-  const totalGrams = gramsPerPart * qty;
+  const gramsPerPart_raw = (model.volume_mm3 / 1000) * mat.density_g_cm3;
+  // shells + infill blend (0% infill still has walls)
+  const fillFactor = SHELL_BASE + (INFILL_PORTION * (clamp(+el.infill.value || 0, 0, 100) / 100));
+  // supports multiplier
+  const supportMult = (el.supports.value === 'yes') ? SUPPORT_MASS_MULT : 1.0;
+  
+  // calibrated grams per part
+  const gramsPerPart = gramsPerPart_raw * fillFactor * supportMult * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
+  const totalGrams   = gramsPerPart * Math.max(1, +el.qty.value || 1);
 
   // 2) time estimator
   const baseSpeed = QUALITY_SPEED[quality];                // mm^3/min
