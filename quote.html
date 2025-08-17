@@ -4,8 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Instant Quote • 3D Printing</title>
+  <link rel="icon" href="data:," />
+
+  <!-- (optional) your site css -->
   <link rel="stylesheet" href="style.css" />
-  <!-- Import map so addons can import 'three' -->
+
+  <!-- Import map so addons can import 'three' by name -->
   <script type="importmap">
   {
     "imports": {
@@ -14,13 +18,18 @@
     }
   }
   </script>
-  <link rel="icon" href="data:," />
+
+  <!-- minimal inline styles to keep layout clean even without style.css -->
   <style>
+    :root { color-scheme: light; }
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;margin:24px;color:#111}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+    nav a{margin-right:12px;color:#111;text-decoration:none}
+    nav a.active{font-weight:600;text-decoration:underline}
     .container{max-width:1000px;margin:0 auto;display:grid;gap:20px}
     .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-    .viewer-wrap{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#0f1115}
+    .viewer-wrap{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#0f1115;margin-top:10px}
     #viewer{width:100%;height:360px;display:block}
     .btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
     .btn[disabled]{opacity:.45;cursor:not-allowed}
@@ -28,7 +37,7 @@
     ul.break{list-style:none;padding:0;margin:0}
     ul.break li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
     ul.break li strong{margin-left:12px}
-    .total h2{margin:10px 0 0}
+    footer{margin-top:24px;color:#666}
   </style>
 </head>
 <body>
@@ -44,14 +53,20 @@
   <main class="container">
     <!-- 1) Upload -->
     <section class="card">
-      <h2>1) Upload your STL</h2>
-      <input id="stlFile" type="file" accept=".stl" />
-      <p class="muted">Max ~50MB. Units assumed <strong>mm</strong>.</p>
+      <h2>1) Upload your STL files</h2>
+      <input id="stlFile" type="file" accept=".stl" multiple />
+      <p class="muted">Select one or more .stl files. Max ~50MB each. Units assumed <b>mm</b>.</p>
       <div id="fileInfo" class="muted"></div>
       <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
     </section>
 
-    <!-- 2) Settings for estimator (no manual hours/min) -->
+    <!-- Selected files list (auto-filled) -->
+    <section class="card" id="fileListWrap" style="display:none;">
+      <h3>Selected models</h3>
+      <div id="fileList"></div>
+    </section>
+
+    <!-- 2) Settings shared for this quote -->
     <section class="card">
       <h2>2) Choose settings</h2>
       <div class="grid">
@@ -63,6 +78,7 @@
             <option value="PETG-CF">PETG-CF</option>
           </select>
         </label>
+
         <label>Quality (layer height)
           <select id="quality">
             <option value="draft">Draft (0.28 mm)</option>
@@ -70,24 +86,23 @@
             <option value="fine">Fine (0.12 mm)</option>
           </select>
         </label>
+
         <label>Infill %
           <input id="infill" type="number" min="0" max="100" step="1" value="15" />
         </label>
+
         <label>Supports
           <select id="supports">
             <option value="no" selected>No</option>
             <option value="yes">Yes</option>
           </select>
         </label>
-        <label>Quantity
-          <input id="qty" type="number" min="1" value="1"/>
-        </label>
       </div>
 
       <button id="calcBtn" class="btn" disabled>Calculate price</button>
     </section>
 
-    <!-- 3) Output (only hours + grams + pricing items) -->
+    <!-- 3) Output -->
     <section class="card">
       <h2>3) Price breakdown</h2>
       <ul id="summaryList" class="break"></ul>
@@ -98,7 +113,7 @@
 
   <footer>© 2025 Your 3D Printing Service</footer>
 
-  <!-- one module only -->
+  <!-- App script (ES module) -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
