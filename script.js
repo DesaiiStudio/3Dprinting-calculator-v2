@@ -1,12 +1,12 @@
-// script.js — Multi-file STL estimator with: cumulative list, remove, drag&drop, thumbnails
-// Colors: light-gray viewport, orange model
+// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails
+// Viewer: light gray bg; Model color: orange
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 /* ===================== CONFIG ===================== */
-// Material pricing + densities
+// Materials (pricing + densities)
 const MATERIALS = {
   PLA:       { rate: 2.0, baseFee: 150, density_g_cm3: 1.24 },
   PETG:      { rate: 2.4, baseFee: 160, density_g_cm3: 1.27 },
@@ -14,22 +14,23 @@ const MATERIALS = {
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
 
-// Estimator knobs (calibrated)
+// Your requested linear speeds (mm/s) converted to volumetric (mm³/min) with lw=0.45
+// Draft 150mm/s @ 0.28 → 1134; Standard 90mm/s @ 0.20 → 486; Fine 60mm/s @ 0.12 → 194
+const QUALITY_SPEED = { draft: 1134, standard: 486, fine: 194 };
+
+// Estimation knobs (grams)
 const SHELL_BASE = 0.70;
-const INFILL_PORTION = 1.00 - SHELL_BASE;
+const INFILL_PORTION = 1.0 - SHELL_BASE;
 const CALIBRATION_MULT = 2.02;
 const WASTE_GRAMS_PER_PART = 2.0;
 const SUPPORT_MASS_MULT = 1.25;
-
-// Speeds from your targets (line width 0.45): 150/90/60 mm/s → mm³/min
-const QUALITY_SPEED = { draft: 1134, standard: 486, fine: 194 };
 
 // Time multipliers
 const INFILL_TIME_MULT  = (p) => 0.85 + (clamp(p, 0, 100)/100) * 0.60;
 const SUPPORT_TIME_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
 
 // Prep overhead
-const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // ≈6.2333
+const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // 6m14s
 const PREP_IS_PER_PART = false;
 
 // Pricing
@@ -45,13 +46,6 @@ const el = {
   dropZone: $('dropZone'),
   fileListWrap: $('fileListWrap'),
   fileList: $('fileList'),
-
-  material: $('material'),
-  quality: $('quality'),
-  infill: $('infill'),
-  supports: $('supports'),
-
-  calcBtn: $('calcBtn'),
   summary: $('summaryList'),
   grandTotal: $('grandTotal'),
   download: $('downloadQuote'),
@@ -68,8 +62,7 @@ function initViewer() {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 
   scene = new THREE.Scene();
-  // Light gray background
-  scene.background = new THREE.Color(0xf3f4f6);
+  scene.background = new THREE.Color(0xf3f4f6); // light gray
 
   const key = new THREE.DirectionalLight(0xffffff, 1.0);
   key.position.set(1,1,1);
@@ -103,29 +96,25 @@ function animate() {
 }
 
 /* ===================== STATE ===================== */
-// models[]: { id, name, volume_mm3, bbox, qty, thumbDataURL, geom? (optional) }
+// models: { id, name, _sig, volume_mm3, bbox, qty, material, quality, infill, supports, thumbDataURL }
 let models = [];
 let idSeq = 1;
 
-/* ===================== FILE INPUT (CUMULATIVE) ===================== */
+/* ===================== FILE INPUT (cumulative) ===================== */
 el.file.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
   await addFiles(files);
-  // clear the input value so selecting the same files again still triggers change
   el.file.value = '';
 });
 
-/* ===================== DRAG & DROP ===================== */
 const dz = el.dropZone || document.body;
-
 ['dragenter','dragover'].forEach(evt =>
   dz.addEventListener(evt, (e)=>{ e.preventDefault(); dz.style.opacity='0.85'; }, false)
 );
 ['dragleave','drop'].forEach(evt =>
   dz.addEventListener(evt, (e)=>{ e.preventDefault(); dz.style.opacity='1'; }, false)
 );
-
 dz.addEventListener('drop', async (e) => {
   const items = e.dataTransfer?.items;
   let files = [];
@@ -143,14 +132,13 @@ dz.addEventListener('drop', async (e) => {
   await addFiles(files);
 });
 
-/* ===================== ADD FILES (accumulate, dedupe by name+size) ===================== */
+/* ===================== ADD FILES ===================== */
 async function addFiles(fileList) {
   const stls = fileList.filter(f => /\.stl$/i.test(f.name));
   if (!stls.length) return;
 
-  el.fileInfo.textContent = `Added ${stls.length} file(s). Total: ${models.length + stls.length}`;
+  let added = 0;
   for (const f of stls) {
-    // dedupe by (name,size)
     if (models.some(m => m._sig === sigOf(f))) continue;
 
     try {
@@ -166,7 +154,6 @@ async function addFiles(fileList) {
         z: g.boundingBox.max.z - g.boundingBox.min.z
       };
 
-      // make a tiny thumbnail
       const thumbDataURL = await makeThumbnail(g);
 
       const model = {
@@ -176,116 +163,143 @@ async function addFiles(fileList) {
         volume_mm3,
         bbox,
         qty: 1,
+        material: 'PLA',
+        quality: 'standard', // default
+        infill: 15,
+        supports: 'no',
         thumbDataURL
       };
       models.push(model);
+
       addFileRow(model, g);
-      // show last added in viewer
       renderMesh(g);
+      added++;
     } catch (err) {
       console.error('STL parse failed:', f.name, err);
     }
   }
 
-  el.fileListWrap.style.display = models.length ? 'block' : 'none';
-  el.calcBtn.disabled = models.length === 0;
+  if (added) {
+    el.fileListWrap.style.display = 'block';
+    el.fileInfo.textContent = `Total models: ${models.length}`;
+    recalc(); // auto-calc after adding
+  }
 }
-
 function sigOf(file){ return `${file.name}::${file.size}`; }
 
-/* ===================== FILE LIST ROW (thumb + name + qty + remove) ===================== */
+/* ===================== ROW RENDER ===================== */
 function addFileRow(model, geometryForPreview) {
   const row = document.createElement('div');
-  row.style.display = 'grid';
-  row.style.gridTemplateColumns = '60px 1fr 110px 120px';
-  row.style.gap = '10px';
-  row.style.alignItems = 'center';
-  row.style.borderBottom = '1px dashed #e5e7eb';
-  row.style.padding = '6px 0';
+  row.className = 'file-row';
   row.id = `row-${model.id}`;
 
-  // thumbnail
+  // 1) thumbnail
   const thumb = document.createElement('img');
   thumb.src = model.thumbDataURL;
   thumb.alt = 'thumb';
-  thumb.style.width = '56px';
-  thumb.style.height = '56px';
-  thumb.style.objectFit = 'cover';
-  thumb.style.borderRadius = '8px';
-  thumb.style.border = '1px solid #e5e7eb';
-  thumb.style.background = '#f3f4f6';
+  Object.assign(thumb.style, {
+    width: '56px', height: '56px', objectFit: 'cover',
+    borderRadius: '8px', border: '1px solid #e5e7eb', background: '#f3f4f6', cursor: 'pointer'
+  });
   thumb.onclick = () => renderMesh(geometryForPreview);
 
-  // name + vol
+  // 2) model title + volume
   const nameWrap = document.createElement('div');
   const nameBtn = document.createElement('button');
   nameBtn.textContent = model.name;
-  nameBtn.style.textAlign = 'left';
-  nameBtn.style.background = 'transparent';
-  nameBtn.style.border = 'none';
-  nameBtn.style.cursor = 'pointer';
-  nameBtn.style.fontWeight = '600';
-  nameBtn.title = 'Click to preview this model';
+  Object.assign(nameBtn.style, { textAlign:'left', background:'transparent', border:'none', cursor:'pointer', fontWeight:'600' });
+  nameBtn.title = 'Click to preview';
   nameBtn.onclick = () => renderMesh(geometryForPreview);
-
   const vol = document.createElement('div');
+  vol.className = 'mini';
   vol.textContent = `${(model.volume_mm3/1000).toFixed(2)} cm³`;
-  vol.style.color = '#6b7280';
-  vol.style.fontSize = '12px';
   nameWrap.appendChild(nameBtn);
   nameWrap.appendChild(vol);
 
-  // qty
-  const qtyWrap = document.createElement('div');
-  const qtyLabel = document.createElement('label');
-  qtyLabel.textContent = 'Qty ';
-  const qty = document.createElement('input');
-  qty.type = 'number';
-  qty.min = '1';
-  qty.step = '1';
-  qty.value = String(model.qty);
-  qty.style.width = '80px';
-  qty.oninput = () => {
-    const v = Math.max(1, parseInt(qty.value || '1', 10));
-    qty.value = String(v);
-    model.qty = v;
-  };
-  qtyLabel.appendChild(qty);
-  qtyWrap.appendChild(qtyLabel);
+  // 3) settings (material, quality, infill, supports)
+  const settings = document.createElement('div');
+  settings.style.display = 'grid';
+  settings.style.gridTemplateColumns = '1fr 1fr 0.8fr 0.8fr';
+  settings.style.gap = '8px';
 
-  // remove
+  const matSel = document.createElement('select');
+  matSel.className = 'select';
+  ['PLA','PETG','ABS','PETG-CF'].forEach(v=>{
+    const o = document.createElement('option'); o.value=v; o.textContent=v; matSel.appendChild(o);
+  });
+  matSel.value = model.material;
+
+  const qualSel = document.createElement('select');
+  qualSel.className = 'select';
+  [['draft','Draft (0.28)'],['standard','Standard (0.20)'],['fine','Fine (0.12)']]
+    .forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; qualSel.appendChild(o); });
+  qualSel.value = model.quality;
+
+  const infillIn = document.createElement('input');
+  infillIn.type='number'; infillIn.min='0'; infillIn.max='100'; infillIn.step='1';
+  infillIn.value = String(model.infill); infillIn.className = 'number short';
+
+  const supSel = document.createElement('select');
+  supSel.className='select';
+  [['no','No'],['yes','Yes']].forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; supSel.appendChild(o); });
+  supSel.value = model.supports;
+
+  // attach change listeners → update model + recalc
+  matSel.onchange = () => { model.material = matSel.value; recalc(); };
+  qualSel.onchange = () => { model.quality = qualSel.value; recalc(); };
+  infillIn.oninput = () => { model.infill = clamp(+infillIn.value||0,0,100); infillIn.value = String(model.infill); recalc(); };
+  supSel.onchange = () => { model.supports = supSel.value; recalc(); };
+
+  settings.appendChild(matSel);
+  settings.appendChild(qualSel);
+  settings.appendChild(infillIn);
+  settings.appendChild(supSel);
+
+  // 4) qty
+  const qtyWrap = document.createElement('div');
+  const qty = document.createElement('input');
+  qty.type='number'; qty.min='1'; qty.step='1'; qty.value=String(model.qty);
+  qty.className='number short';
+  qty.oninput = ()=>{ model.qty = Math.max(1, parseInt(qty.value||'1',10)); qty.value = String(model.qty); recalc(); };
+  qtyWrap.appendChild(qty);
+
+  // 5) price cell (auto-filled)
+  const priceCell = document.createElement('div');
+  priceCell.className = 'price-chip';
+  priceCell.id = `price-${model.id}`;
+  priceCell.textContent = '—';
+
+  // 6) remove
   const rmv = document.createElement('button');
   rmv.textContent = 'Remove';
-  rmv.style.border = '1px solid #ef4444';
-  rmv.style.background = '#fff';
-  rmv.style.color = '#ef4444';
-  rmv.style.padding = '6px 10px';
-  rmv.style.borderRadius = '8px';
-  rmv.style.cursor = 'pointer';
+  rmv.className = 'pill';
   rmv.onclick = () => {
     models = models.filter(m => m.id !== model.id);
     row.remove();
-    el.calcBtn.disabled = models.length === 0;
     if (!models.length) {
       el.fileListWrap.style.display = 'none';
-      el.summary.innerHTML = '';
-      el.grandTotal.innerHTML = '';
+      el.summary.innerHTML = ''; el.grandTotal.innerHTML = '';
+      el.download.disabled = true;
+    } else {
+      recalc();
     }
   };
 
   row.appendChild(thumb);
   row.appendChild(nameWrap);
+  row.appendChild(settings);
   row.appendChild(qtyWrap);
+  row.appendChild(priceCell);
   row.appendChild(rmv);
   el.fileList.appendChild(row);
 }
 
-/* ===================== RENDER MESH (orange) ===================== */
+/* ===================== RENDER MESH ===================== */
 function renderMesh(geo) {
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
   mesh = new THREE.Mesh(
     geo,
-    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 })
+    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }) // orange
   );
   scene.add(mesh);
 
@@ -299,14 +313,14 @@ function renderMesh(geo) {
   camera.lookAt(center);
 }
 
-/* ===================== THUMBNAIL MAKER ===================== */
+/* ===================== THUMBNAIL ===================== */
 async function makeThumbnail(geo) {
   const w = 140, h = 100;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   const scn = new THREE.Scene();
-  scn.background = new THREE.Color(0xf3f4f6); // match viewer bg
+  scn.background = new THREE.Color(0xf3f4f6);
 
   const light1 = new THREE.DirectionalLight(0xffffff, 1.0); light1.position.set(1,1,1);
   const amb = new THREE.AmbientLight(0xffffff, 0.45);
@@ -335,7 +349,7 @@ async function makeThumbnail(geo) {
   return url;
 }
 
-/* ===================== VOLUME ===================== */
+/* ===================== CORE MATH ===================== */
 function computeVolume(geo) {
   const a = geo.attributes.position.array;
   let v = 0;
@@ -348,110 +362,182 @@ function computeVolume(geo) {
   return Math.abs(v)/6;
 }
 
-/* ===================== CALCULATE (BATCH) ===================== */
-el.calcBtn.addEventListener('click', () => {
-  if (!models.length) return;
+function estimateForModel(m) {
+  const mat = MATERIALS[m.material];
 
-  const matKey   = el.material.value;
-  const mat      = MATERIALS[matKey];
-  const quality  = el.quality.value;
-  const infill   = clamp(+el.infill.value || 0, 0, 100);
-  const supports = el.supports.value;
+  // grams
+  const grams_solid = (m.volume_mm3 / 1000) * mat.density_g_cm3;
+  const fillFactor  = SHELL_BASE + INFILL_PORTION * (m.infill/100);
+  const supportMass = (m.supports === 'yes') ? SUPPORT_MASS_MULT : 1.0;
+  const gramsPerPart = grams_solid * fillFactor * supportMass * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
+  const gramsTotal   = gramsPerPart * m.qty;
 
-  let totalGrams = 0;
-  let totalMinutes = 0;
+  // time
+  const baseSpeed = QUALITY_SPEED[m.quality];
+  const timeMult  = INFILL_TIME_MULT(m.infill) * SUPPORT_TIME_MULT(m.supports);
+  const timeMinPerPart = (m.volume_mm3 / baseSpeed) * timeMult;
+  const minutesTotal   = timeMinPerPart * m.qty;
+
+  // costs (without small-order fee)
+  const materialCost = gramsTotal * mat.rate;
+  const printHours   = minutesTotal / 60;
+  const printCost    = printHours * PRINT_RATE_PER_HOUR;
+
+  return {
+    gramsPerPart, gramsTotal,
+    minutesTotal,
+    materialCost, printCost,
+    sub: materialCost + printCost,
+    matBaseFee: mat.baseFee
+  };
+}
+
+/* ===================== RECALC (auto) ===================== */
+function recalc() {
+  if (!models.length) {
+    el.summary.innerHTML = '';
+    el.grandTotal.innerHTML = '';
+    el.download.disabled = true;
+    return;
+  }
+
+  let grandGrams = 0;
+  let grandMinutes = 0;
+  let grandSubtotal = 0;
+  let maxBaseFee = 0; // highest small-fee among selected filaments (per your rule)
   const items = [];
 
+  // per-row update
   for (const m of models) {
-    // grams
-    const grams_solid = (m.volume_mm3 / 1000) * mat.density_g_cm3;
-    const fillFactor  = SHELL_BASE + INFILL_PORTION * (infill/100);
-    const supportMass = (supports === 'yes') ? SUPPORT_MASS_MULT : 1.0;
-    const gramsPerPart = grams_solid * fillFactor * supportMass * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
-    const gramsThis = gramsPerPart * m.qty;
+    const est = estimateForModel(m);
+    grandGrams   += est.gramsTotal;
+    grandMinutes += est.minutesTotal;
+    grandSubtotal += est.sub;
+    maxBaseFee = Math.max(maxBaseFee, est.matBaseFee);
 
-    // time
-    const baseSpeed = QUALITY_SPEED[quality];
-    const timeMult  = INFILL_TIME_MULT(infill) * SUPPORT_TIME_MULT(supports);
-    const timeMinPerPart = (m.volume_mm3 / baseSpeed) * timeMult;
-    const minutesThis = timeMinPerPart * m.qty;
-
-    totalGrams += gramsThis;
-    totalMinutes += minutesThis;
+    // update row price (rounded up per-part subtotal, not including small fee)
+    const rowPrice = Math.ceil(est.sub);
+    const priceCell = document.getElementById(`price-${m.id}`);
+    if (priceCell) priceCell.textContent = String(rowPrice);
 
     items.push({
       file: m.name,
       qty: m.qty,
-      volume_mm3: Math.round(m.volume_mm3),
-      grams_per_part: round(gramsPerPart,2),
-      grams_total: round(gramsThis,2),
-      minutes_total: Math.round(minutesThis)
+      material: m.material,
+      quality: m.quality,
+      infill: m.infill,
+      supports: m.supports,
+      grams_total: round(est.gramsTotal,2),
+      minutes_total: Math.round(est.minutesTotal),
+      sub_total_thb: round(est.sub,2)
     });
   }
 
+  // add prep time (once per job or per part)
   const totalParts = models.reduce((s,m)=>s+m.qty,0);
-  totalMinutes += PREP_TIME_PER_JOB_MIN * (PREP_IS_PER_PART ? totalParts : 1);
+  grandMinutes += PREP_TIME_PER_JOB_MIN * (PREP_IS_PER_PART ? totalParts : 1);
 
-  const totalHours = totalMinutes / 60;
+  const grandHours = grandMinutes / 60;
 
-  // pricing
-  const materialCost = totalGrams * mat.rate;
-  const printCost    = totalHours * PRINT_RATE_PER_HOUR;
-  const subtotal     = materialCost + printCost;
-
+  // apply small-order fee using HIGHEST baseFee among used materials
+  const subtotal = grandSubtotal;
   let smallOrderFee;
   if (subtotal <= SMALL_FEE_THRESHOLD) {
-    smallOrderFee = mat.baseFee;
+    smallOrderFee = maxBaseFee;
   } else {
-    const reduction = ((subtotal - SMALL_FEE_THRESHOLD) / SMALL_FEE_TAPER) * mat.baseFee;
-    smallOrderFee = Math.max(mat.baseFee - reduction, 0);
+    const reduction = ((subtotal - SMALL_FEE_THRESHOLD) / SMALL_FEE_TAPER) * maxBaseFee;
+    smallOrderFee = Math.max(maxBaseFee - reduction, 0);
   }
-  const finalPrice = Math.ceil(subtotal + smallOrderFee);
 
-  // UI
+  // grand total
+  const materialCost = grandGrams * avgRateWeightedByItems(items); // informational only (not shown per your UI)
+  const printCost    = grandHours * PRINT_RATE_PER_HOUR;           // informational only
+  const finalPrice   = Math.ceil(subtotal + smallOrderFee);
+
+  // UI summary
   el.summary.innerHTML = `
     <li><span>Models</span><strong>${models.length} file(s), ${totalParts} part(s)</strong></li>
-    <li><span>Filament</span><strong>${matKey}</strong></li>
-    <li><span>Total used</span><strong>${round(totalGrams,2)} g</strong></li>
-    <li><span>Total time</span><strong>${Math.floor(totalHours)} h ${Math.round((totalHours%1)*60)} m</strong></li>
-    <li><span>Printing fee</span><strong>${round(materialCost + printCost, 2)} THB</strong></li>
-    <li><span>Small order fee</span><strong>${round(smallOrderFee, 2)} THB</strong></li>
+    <li><span>Total used</span><strong>${round(grandGrams,2)} g</strong></li>
+    <li><span>Total time</span><strong>${Math.floor(grandHours)} h ${Math.round((grandHours%1)*60)} m</strong></li>
+    <li><span>Printing fee</span><strong>${round(subtotal, 2)} THB</strong></li>
+    <li><span>Small order fee (max)</span><strong>${round(smallOrderFee, 2)} THB</strong></li>
   `;
   el.grandTotal.innerHTML = `<div class="total"><h2>Total price: ${finalPrice} THB</h2></div>`;
-
-  // JSON download
-  const payload = {
-    material: matKey,
-    quality, infill, supports,
-    totals: {
-      files: models.length,
-      parts: totalParts,
-      grams: round(totalGrams,2),
-      minutes: Math.round(totalMinutes),
-      hours: Math.floor(totalHours),
-      remMinutes: Math.round((totalHours%1)*60)
-    },
-    costs: {
-      materialCost: round(materialCost,2),
-      printCost: round(printCost,2),
-      smallOrderFee: round(smallOrderFee,2),
-      finalPrice
-    },
-    prep: {
-      minutes: PREP_TIME_PER_JOB_MIN,
-      mode: PREP_IS_PER_PART ? 'per-part' : 'per-job'
-    },
-    items
-  };
   el.download.disabled = false;
+
+  // download payload
   el.download.onclick = () => {
+    const payload = {
+      totals: {
+        files: models.length,
+        parts: totalParts,
+        grams: round(grandGrams,2),
+        minutes: Math.round(grandMinutes),
+        hours: Math.floor(grandHours),
+        remMinutes: Math.round((grandHours%1)*60)
+      },
+      costs: {
+        subtotal: round(subtotal,2),
+        smallOrderFee: round(smallOrderFee,2),
+        finalPrice
+      },
+      rule_smallFee_base: 'highest baseFee among selected filaments',
+      items
+    };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'quote.json'; a.click();
     URL.revokeObjectURL(url);
   };
-});
+}
+
+// average material rate weighted by each item’s grams (for info only)
+function avgRateWeightedByItems(items){
+  let totalGrams = 0, sum = 0;
+  for (const it of items){
+    const rate = MATERIALS[it.material].rate;
+    totalGrams += it.grams_total;
+    sum += it.grams_total * rate;
+  }
+  return totalGrams ? (sum/totalGrams) : 0;
+}
 
 /* ===================== HELPERS ===================== */
 function round(n,d){return Math.round(n*10**d)/10**d}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+
+/* ===================== UTIL ===================== */
+async function makeThumbnail(geo) {
+  const w = 140, h = 100;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  const scn = new THREE.Scene();
+  scn.background = new THREE.Color(0xf3f4f6);
+
+  const light1 = new THREE.DirectionalLight(0xffffff, 1.0); light1.position.set(1,1,1);
+  const amb = new THREE.AmbientLight(0xffffff, 0.45);
+  scn.add(light1, amb);
+
+  const cam = new THREE.PerspectiveCamera(50, w/h, 0.1, 10000);
+
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
+  scn.add(m);
+
+  const box = new THREE.Box3().setFromObject(m);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const center = new THREE.Vector3(); box.getCenter(center);
+
+  const dist = Math.max(size.x, size.y, size.z) * 2.6 + 10;
+  cam.position.set(center.x + dist, center.y + dist, center.z + dist);
+  cam.lookAt(center);
+
+  r.setSize(w, h, false);
+  r.render(scn, cam);
+
+  const url = canvas.toDataURL('image/png');
+  r.dispose();
+  m.geometry.dispose();
+  m.material.dispose();
+  return url;
+}
