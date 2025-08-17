@@ -5,26 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Instant Quote • 3D Printing</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    /* minimal defaults so it’s readable even without your style.css */
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.45;margin:24px;color:#111}
-    header,footer{margin:16px 0}
-    nav a{margin-right:12px}
-    .container{display:grid;gap:20px;max-width:1000px}
-    .card{border:1px solid #ddd;padding:16px;border-radius:8px}
-    .viewer-wrap{border:1px solid #ddd;border-radius:8px;overflow:hidden;margin-top:10px}
-    #viewer{width:100%;height:360px;display:block}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-    .mt{margin-top:10px}
-    .btn{padding:10px 14px;border:1px solid #333;background:#111;color:#fff;border-radius:6px;cursor:pointer}
-    .btn[disabled]{opacity:.4;cursor:not-allowed}
-    .btn.secondary{background:#f8f8f8;color:#111;border-color:#bbb}
-    .muted{color:#555}
-    pre{background:#f7f7f7;padding:10px;border-radius:6px;overflow:auto}
-  </style>
 </head>
 <body>
-  <header>
+  <header class="site-header">
     <h1>Instant Quote</h1>
     <nav>
       <a href="index.html">Home</a>
@@ -40,9 +23,7 @@
       <input id="stlFile" type="file" accept=".stl" />
       <p class="muted">Max ~50MB. Units assumed <strong>mm</strong>.</p>
       <div id="fileInfo" class="muted"></div>
-      <div class="viewer-wrap">
-        <canvas id="viewer"></canvas>
-      </div>
+      <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
     </section>
 
     <!-- 2) Settings -->
@@ -56,7 +37,6 @@
             <option value="PETG-CF">PETG-CF</option>
           </select>
         </label>
-
         <label>Quality (layer height)
           <select id="quality">
             <option value="standard">Standard (0.2 mm)</option>
@@ -64,44 +44,29 @@
             <option value="draft">Draft (0.28 mm)</option>
           </select>
         </label>
-
         <label>Infill %
           <input id="infill" type="number" min="0" max="100" value="15"/>
         </label>
-
         <label>Supports
           <select id="supports">
             <option value="no">No</option>
             <option value="yes">Yes</option>
           </select>
         </label>
-
         <label>Quantity
           <input id="qty" type="number" min="1" value="1"/>
         </label>
       </div>
 
       <details class="mt">
-        <summary><strong>Advanced pricing variables</strong> (admin will move to backend later)</summary>
+        <summary><strong>Advanced pricing variables</strong> (temp on client)</summary>
         <div class="grid mt">
-          <label>Base fee (THB)
-            <input id="baseFee" type="number" step="1" value="50"/>
-          </label>
-          <label>Machine cost / hr (THB)
-            <input id="machHr" type="number" step="1" value="60"/>
-          </label>
-          <label>Post-process fee / part (THB)
-            <input id="ppFee" type="number" step="1" value="10"/>
-          </label>
-          <label>Min order threshold (THB)
-            <input id="minThresh" type="number" step="1" value="250"/>
-          </label>
-          <label>Profit margin %
-            <input id="margin" type="number" step="1" value="30"/>
-          </label>
-          <label>VAT %
-            <input id="vat" type="number" step="0.1" value="7"/>
-          </label>
+          <label>Base fee (THB)<input id="baseFee" type="number" step="1" value="50"/></label>
+          <label>Machine cost / hr (THB)<input id="machHr" type="number" step="1" value="60"/></label>
+          <label>Post-process fee / part (THB)<input id="ppFee" type="number" step="1" value="10"/></label>
+          <label>Min order threshold (THB)<input id="minThresh" type="number" step="1" value="250"/></label>
+          <label>Profit margin %<input id="margin" type="number" step="1" value="30"/></label>
+          <label>VAT %<input id="vat" type="number" step="0.1" value="7"/></label>
         </div>
       </details>
 
@@ -118,23 +83,9 @@
     </section>
   </main>
 
-  <footer class="mt">
-    <p>© 2025 Your 3D Printing Service</p>
-  </footer>
+  <footer class="site-footer">© 2025 My 3D Printing Service</footer>
 
-  <!-- ===== Three.js module shim (must be before script.js) ===== -->
+  <!-- One module only: it imports three.js and the loaders inside -->
   <script type="module" src="script.js"></script>
-    import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js';
-    import { STLLoader } from 'https://unpkg.com/three@0.161.0/examples/jsm/loaders/STLLoader.js';
-
-    // Expose for the non-module app script
-    window.THREE = THREE;
-    window.THREE.OrbitControls = OrbitControls;
-    window.THREE.STLLoader = STLLoader;
-  </script>
-
-  <!-- Your app logic (non-module) -->
-  <script src="script.js" defer></script>
 </body>
 </html>
