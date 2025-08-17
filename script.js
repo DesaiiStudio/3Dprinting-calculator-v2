@@ -8,11 +8,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-
-  window.THREE = THREE;
-  window.THREE.OrbitControls = OrbitControls;
-  window.THREE.STLLoader = STLLoader;
-
 // ===== Config you can tweak =====
 const MATERIALS = {
   PLA:       { density_g_cm3: 1.24, cost_per_kg_thb: 450 },
