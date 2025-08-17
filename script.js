@@ -1,4 +1,5 @@
-// script.js — ES Module (multi-file STL estimator + your pricing rules)
+// script.js — Multi-file STL estimator with: cumulative list, remove, drag&drop, thumbnails
+// Colors: light-gray viewport, orange model
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -13,37 +14,35 @@ const MATERIALS = {
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
 
-// Estimator knobs (tune to your printer)
-const SHELL_BASE = 0.70;                 // mass share at 0% infill (walls/top/bottom)
+// Estimator knobs (calibrated)
+const SHELL_BASE = 0.70;
 const INFILL_PORTION = 1.00 - SHELL_BASE;
-const CALIBRATION_MULT = 2.02;           // from your samples
-const WASTE_GRAMS_PER_PART = 2.0;        // purge/brim/etc per part
-const SUPPORT_MASS_MULT = 1.25;          // extra grams when supports=yes
+const CALIBRATION_MULT = 2.02;
+const WASTE_GRAMS_PER_PART = 2.0;
+const SUPPORT_MASS_MULT = 1.25;
 
-// Convert your speeds to volumetric flow (mm³/min) using lw=0.45mm
-// Draft 150 mm/s @ 0.28 → 1134 mm³/min
-// Standard 90 mm/s @ 0.20 → 486 mm³/min
-// Fine 60 mm/s @ 0.12 → 194 mm³/min
+// Speeds from your targets (line width 0.45): 150/90/60 mm/s → mm³/min
 const QUALITY_SPEED = { draft: 1134, standard: 486, fine: 194 };
 
 // Time multipliers
-const INFILL_TIME_MULT  = (p) => 0.85 + (clamp(p, 0, 100)/100) * 0.60;  // 0%→0.85, 100%→1.45
+const INFILL_TIME_MULT  = (p) => 0.85 + (clamp(p, 0, 100)/100) * 0.60;
 const SUPPORT_TIME_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
 
 // Prep overhead
-const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // 6m14s ≈ 6.2333
-const PREP_IS_PER_PART = false;          // set true if each file (or copy) is its own job
+const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // ≈6.2333
+const PREP_IS_PER_PART = false;
 
-// Pricing constants
-const SMALL_FEE_THRESHOLD = 250; // THB
-const SMALL_FEE_TAPER     = 400; // THB
-const PRINT_RATE_PER_HOUR = 10;  // THB/hr
+// Pricing
+const SMALL_FEE_THRESHOLD = 250;
+const SMALL_FEE_TAPER     = 400;
+const PRINT_RATE_PER_HOUR = 10;
 
 /* ===================== DOM ===================== */
 const $ = (id) => document.getElementById(id);
 const el = {
   file: $('stlFile'),
   fileInfo: $('fileInfo'),
+  dropZone: $('dropZone'),
   fileListWrap: $('fileListWrap'),
   fileList: $('fileList'),
 
@@ -52,7 +51,6 @@ const el = {
   infill: $('infill'),
   supports: $('supports'),
 
-  // (global qty removed; quantities are per-file now)
   calcBtn: $('calcBtn'),
   summary: $('summaryList'),
   grandTotal: $('grandTotal'),
@@ -67,10 +65,11 @@ initViewer();
 
 function initViewer() {
   const canvas = el.canvas;
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0f1115);
+  // Light gray background
+  scene.background = new THREE.Color(0xf3f4f6);
 
   const key = new THREE.DirectionalLight(0xffffff, 1.0);
   key.position.set(1,1,1);
@@ -103,29 +102,56 @@ function animate() {
   renderer?.render(scene, camera);
 }
 
-/* ===================== MODELS STATE ===================== */
-// models[] holds: { id, name, volume_mm3, bbox, qty }
+/* ===================== STATE ===================== */
+// models[]: { id, name, volume_mm3, bbox, qty, thumbDataURL, geom? (optional) }
 let models = [];
 let idSeq = 1;
 
-/* ===================== FILE HANDLING (MULTI) ===================== */
+/* ===================== FILE INPUT (CUMULATIVE) ===================== */
 el.file.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
-  resetOutputs();
-  el.fileList.innerHTML = '';
-  models = [];
+  if (!files.length) return;
+  await addFiles(files);
+  // clear the input value so selecting the same files again still triggers change
+  el.file.value = '';
+});
 
-  if (!files.length) {
-    el.fileInfo.textContent = 'No files selected.';
-    el.fileListWrap.style.display = 'none';
-    el.calcBtn.disabled = true;
-    return;
+/* ===================== DRAG & DROP ===================== */
+const dz = el.dropZone || document.body;
+
+['dragenter','dragover'].forEach(evt =>
+  dz.addEventListener(evt, (e)=>{ e.preventDefault(); dz.style.opacity='0.85'; }, false)
+);
+['dragleave','drop'].forEach(evt =>
+  dz.addEventListener(evt, (e)=>{ e.preventDefault(); dz.style.opacity='1'; }, false)
+);
+
+dz.addEventListener('drop', async (e) => {
+  const items = e.dataTransfer?.items;
+  let files = [];
+  if (items && items.length) {
+    for (const it of items) {
+      if (it.kind === 'file') {
+        const f = it.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+  } else {
+    files = Array.from(e.dataTransfer?.files || []);
   }
-  el.fileInfo.textContent = `${files.length} file(s) selected. Units assumed mm.`;
+  if (!files.length) return;
+  await addFiles(files);
+});
 
-  // Parse sequentially to keep UI snappy
-  for (const f of files) {
-    if (!f.name.toLowerCase().endsWith('.stl')) continue;
+/* ===================== ADD FILES (accumulate, dedupe by name+size) ===================== */
+async function addFiles(fileList) {
+  const stls = fileList.filter(f => /\.stl$/i.test(f.name));
+  if (!stls.length) return;
+
+  el.fileInfo.textContent = `Added ${stls.length} file(s). Total: ${models.length + stls.length}`;
+  for (const f of stls) {
+    // dedupe by (name,size)
+    if (models.some(m => m._sig === sigOf(f))) continue;
 
     try {
       const buf = await f.arrayBuffer();
@@ -140,13 +166,21 @@ el.file.addEventListener('change', async (e) => {
         z: g.boundingBox.max.z - g.boundingBox.min.z
       };
 
-      const model = { id: idSeq++, name: f.name, volume_mm3, bbox, qty: 1 };
+      // make a tiny thumbnail
+      const thumbDataURL = await makeThumbnail(g);
+
+      const model = {
+        id: idSeq++,
+        name: f.name,
+        _sig: sigOf(f),
+        volume_mm3,
+        bbox,
+        qty: 1,
+        thumbDataURL
+      };
       models.push(model);
-
-      // add row to list; clicking name previews it
       addFileRow(model, g);
-
-      // show first mesh (or keep last – your choice)
+      // show last added in viewer
       renderMesh(g);
     } catch (err) {
       console.error('STL parse failed:', f.name, err);
@@ -155,32 +189,53 @@ el.file.addEventListener('change', async (e) => {
 
   el.fileListWrap.style.display = models.length ? 'block' : 'none';
   el.calcBtn.disabled = models.length === 0;
-});
+}
 
+function sigOf(file){ return `${file.name}::${file.size}`; }
+
+/* ===================== FILE LIST ROW (thumb + name + qty + remove) ===================== */
 function addFileRow(model, geometryForPreview) {
   const row = document.createElement('div');
   row.style.display = 'grid';
-  row.style.gridTemplateColumns = '1fr 110px 140px';
+  row.style.gridTemplateColumns = '60px 1fr 110px 120px';
   row.style.gap = '10px';
   row.style.alignItems = 'center';
   row.style.borderBottom = '1px dashed #e5e7eb';
   row.style.padding = '6px 0';
+  row.id = `row-${model.id}`;
 
-  // name (click to preview)
-  const name = document.createElement('button');
-  name.textContent = model.name;
-  name.style.textAlign = 'left';
-  name.style.background = 'transparent';
-  name.style.border = 'none';
-  name.style.cursor = 'pointer';
-  name.title = 'Click to preview this model';
-  name.onclick = () => renderMesh(geometryForPreview);
+  // thumbnail
+  const thumb = document.createElement('img');
+  thumb.src = model.thumbDataURL;
+  thumb.alt = 'thumb';
+  thumb.style.width = '56px';
+  thumb.style.height = '56px';
+  thumb.style.objectFit = 'cover';
+  thumb.style.borderRadius = '8px';
+  thumb.style.border = '1px solid #e5e7eb';
+  thumb.style.background = '#f3f4f6';
+  thumb.onclick = () => renderMesh(geometryForPreview);
 
-  // volume info (cm³)
+  // name + vol
+  const nameWrap = document.createElement('div');
+  const nameBtn = document.createElement('button');
+  nameBtn.textContent = model.name;
+  nameBtn.style.textAlign = 'left';
+  nameBtn.style.background = 'transparent';
+  nameBtn.style.border = 'none';
+  nameBtn.style.cursor = 'pointer';
+  nameBtn.style.fontWeight = '600';
+  nameBtn.title = 'Click to preview this model';
+  nameBtn.onclick = () => renderMesh(geometryForPreview);
+
   const vol = document.createElement('div');
   vol.textContent = `${(model.volume_mm3/1000).toFixed(2)} cm³`;
+  vol.style.color = '#6b7280';
+  vol.style.fontSize = '12px';
+  nameWrap.appendChild(nameBtn);
+  nameWrap.appendChild(vol);
 
-  // qty input
+  // qty
   const qtyWrap = document.createElement('div');
   const qtyLabel = document.createElement('label');
   qtyLabel.textContent = 'Qty ';
@@ -198,18 +253,39 @@ function addFileRow(model, geometryForPreview) {
   qtyLabel.appendChild(qty);
   qtyWrap.appendChild(qtyLabel);
 
-  row.appendChild(name);
-  row.appendChild(vol);
+  // remove
+  const rmv = document.createElement('button');
+  rmv.textContent = 'Remove';
+  rmv.style.border = '1px solid #ef4444';
+  rmv.style.background = '#fff';
+  rmv.style.color = '#ef4444';
+  rmv.style.padding = '6px 10px';
+  rmv.style.borderRadius = '8px';
+  rmv.style.cursor = 'pointer';
+  rmv.onclick = () => {
+    models = models.filter(m => m.id !== model.id);
+    row.remove();
+    el.calcBtn.disabled = models.length === 0;
+    if (!models.length) {
+      el.fileListWrap.style.display = 'none';
+      el.summary.innerHTML = '';
+      el.grandTotal.innerHTML = '';
+    }
+  };
+
+  row.appendChild(thumb);
+  row.appendChild(nameWrap);
   row.appendChild(qtyWrap);
+  row.appendChild(rmv);
   el.fileList.appendChild(row);
 }
 
-/* ===================== RENDER MESH ===================== */
+/* ===================== RENDER MESH (orange) ===================== */
 function renderMesh(geo) {
-  if (mesh) scene.remove(mesh);
+  if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
   mesh = new THREE.Mesh(
     geo,
-    new THREE.MeshStandardMaterial({ color: 0x5ad, metalness: 0.1, roughness: 0.85 })
+    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 })
   );
   scene.add(mesh);
 
@@ -218,9 +294,45 @@ function renderMesh(geo) {
   const center = new THREE.Vector3(); box.getCenter(center);
   controls.target.copy(center);
 
-  const dist = Math.max(size.x, size.y, size.z) * 2.2;
+  const dist = Math.max(size.x, size.y, size.z) * 2.2 + 10;
   camera.position.set(center.x + dist, center.y + dist, center.z + dist);
   camera.lookAt(center);
+}
+
+/* ===================== THUMBNAIL MAKER ===================== */
+async function makeThumbnail(geo) {
+  const w = 140, h = 100;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  const scn = new THREE.Scene();
+  scn.background = new THREE.Color(0xf3f4f6); // match viewer bg
+
+  const light1 = new THREE.DirectionalLight(0xffffff, 1.0); light1.position.set(1,1,1);
+  const amb = new THREE.AmbientLight(0xffffff, 0.45);
+  scn.add(light1, amb);
+
+  const cam = new THREE.PerspectiveCamera(50, w/h, 0.1, 10000);
+
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
+  scn.add(m);
+
+  const box = new THREE.Box3().setFromObject(m);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const center = new THREE.Vector3(); box.getCenter(center);
+
+  const dist = Math.max(size.x, size.y, size.z) * 2.6 + 10;
+  cam.position.set(center.x + dist, center.y + dist, center.z + dist);
+  cam.lookAt(center);
+
+  r.setSize(w, h, false);
+  r.render(scn, cam);
+
+  const url = canvas.toDataURL('image/png');
+  r.dispose();
+  m.geometry.dispose();
+  m.material.dispose();
+  return url;
 }
 
 /* ===================== VOLUME ===================== */
@@ -246,28 +358,25 @@ el.calcBtn.addEventListener('click', () => {
   const infill   = clamp(+el.infill.value || 0, 0, 100);
   const supports = el.supports.value;
 
-  // totals
   let totalGrams = 0;
   let totalMinutes = 0;
-
-  // per-file breakdown (for JSON)
   const items = [];
 
-  // per-file compute using same settings for batch
   for (const m of models) {
-    const grams_solid = (m.volume_mm3 / 1000) * mat.density_g_cm3;         // g for solid
-    const fillFactor  = SHELL_BASE + INFILL_PORTION * (infill/100);         // shells + infill
+    // grams
+    const grams_solid = (m.volume_mm3 / 1000) * mat.density_g_cm3;
+    const fillFactor  = SHELL_BASE + INFILL_PORTION * (infill/100);
     const supportMass = (supports === 'yes') ? SUPPORT_MASS_MULT : 1.0;
-
     const gramsPerPart = grams_solid * fillFactor * supportMass * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
-    const gramsThis    = gramsPerPart * m.qty;
+    const gramsThis = gramsPerPart * m.qty;
 
-    const baseSpeed = QUALITY_SPEED[quality];                                // mm³/min
+    // time
+    const baseSpeed = QUALITY_SPEED[quality];
     const timeMult  = INFILL_TIME_MULT(infill) * SUPPORT_TIME_MULT(supports);
     const timeMinPerPart = (m.volume_mm3 / baseSpeed) * timeMult;
-    const minutesThis    = timeMinPerPart * m.qty;
+    const minutesThis = timeMinPerPart * m.qty;
 
-    totalGrams   += gramsThis;
+    totalGrams += gramsThis;
     totalMinutes += minutesThis;
 
     items.push({
@@ -280,7 +389,6 @@ el.calcBtn.addEventListener('click', () => {
     });
   }
 
-  // add prep overhead (per job or per part)
   const totalParts = models.reduce((s,m)=>s+m.qty,0);
   totalMinutes += PREP_TIME_PER_JOB_MIN * (PREP_IS_PER_PART ? totalParts : 1);
 
@@ -298,10 +406,9 @@ el.calcBtn.addEventListener('click', () => {
     const reduction = ((subtotal - SMALL_FEE_THRESHOLD) / SMALL_FEE_TAPER) * mat.baseFee;
     smallOrderFee = Math.max(mat.baseFee - reduction, 0);
   }
-
   const finalPrice = Math.ceil(subtotal + smallOrderFee);
 
-  // UI summary (keep concise)
+  // UI
   el.summary.innerHTML = `
     <li><span>Models</span><strong>${models.length} file(s), ${totalParts} part(s)</strong></li>
     <li><span>Filament</span><strong>${matKey}</strong></li>
@@ -348,11 +455,3 @@ el.calcBtn.addEventListener('click', () => {
 /* ===================== HELPERS ===================== */
 function round(n,d){return Math.round(n*10**d)/10**d}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-function resetOutputs(){
-  el.summary.innerHTML = '';
-  el.grandTotal.innerHTML = '';
-  el.download.disabled = true;
-  el.calcBtn.disabled = true;
-  el.fileList.innerHTML = '';
-  el.fileListWrap.style.display = 'none';
-}
