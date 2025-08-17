@@ -6,28 +6,33 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 /* ================= CONFIG ================= */
-// Material pricing + densities
+// ===== Material pricing + densities (unchanged) =====
 const MATERIALS = {
   PLA:       { rate: 2.0, baseFee: 150, density_g_cm3: 1.24 },
   PETG:      { rate: 2.4, baseFee: 160, density_g_cm3: 1.27 },
   ABS:       { rate: 3.0, baseFee: 180, density_g_cm3: 1.04 },
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
-// Estimated volumetric throughput (mm^3/min) by quality
-const QUALITY_SPEED = {
-  draft:    320,  // ~60 mm/s @ 0.28 layer, 0.45 line, 70% efficiency
-  standard: 230,  // ~60 mm/s @ 0.20 layer, 0.45 line, 70% efficiency
-  fine:     140   // ~60 mm/s @ 0.12 layer, 0.45 line, 70% efficiency
-};
-const INFILL_TIME_MULT = (p) => 0.85 + (p/100) * 0.60;
-// Supports slow-down
-const SUPPORT_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
-// Convert volume to GRAMS factor (shells≈38% + infill remainder)
-const MASS_FACTOR = (p) => 0.38 + (p/100) * 0.62;  // 0%→0.38, 100%→1.00
-// Pricing constants
-const SMALL_FEE_THRESHOLD = 250; // THB
-const SMALL_FEE_TAPER     = 400; // THB
-const PRINT_RATE_PER_HOUR = 10;  // THB/hr
+
+// ===== Estimator knobs (tune to your printer) =====
+// Base shell mass share at 0% infill (was ~0.38; increase for thicker perimeters)
+const SHELL_BASE = 0.70;          // 0.65–0.80 typical for “strong” walls
+// Infill contribution up to 100% (rest of mass)
+const INFILL_PORTION = 1.00 - SHELL_BASE;  // here 0.30
+
+// Global calibration multiplier to match slicer totals (your data suggests ~1.9–2.2)
+const CALIBRATION_MULT = 2.0;     // set 1.9..2.1 to best match your slicer
+
+// Extra grams not in STL: purge/prime, brim/raft, small wastes (per part)
+const WASTE_GRAMS_PER_PART = 1.5; // bump to 2–4 g if you brim/raft a lot
+// Supports add material too (separate from time)
+const SUPPORT_MASS_MULT = 1.20;   // 20% more grams when supports = yes
+
+// Time model (unchanged from your last version; adjust if needed)
+const QUALITY_SPEED = { draft: 320, standard: 230, fine: 140 };
+const SMALL_FEE_THRESHOLD = 250;
+const SMALL_FEE_TAPER     = 400;
+const PRINT_RATE_PER_HOUR = 10;
 
 /* ================= DOM ================= */
 const $ = (id) => document.getElementById(id);
