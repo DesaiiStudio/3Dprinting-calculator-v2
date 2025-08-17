@@ -1,6 +1,4 @@
-// script.js — multi-file quote tool with per-file settings, auto-calc, drag&drop, thumbnails
-// Viewer: light gray bg, orange model, +10% lights, bottom-left axis gizmo
-// Axis gizmo center stays fixed; only arms rotate; overlay is transparent.
+// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails (fix: empty state + +10% light)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -14,14 +12,13 @@ const MATERIALS = {
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
 
-// Your speed targets (mm/s) converted to volumetric (mm³/min) using lw=0.45 & typical layer heights
-// Draft 150@0.28 → 1134; Standard 90@0.20 → 486; Fine 60@0.12 → 194
+// Speeds from your targets (line width 0.45): 150/90/60 mm/s → mm³/min
 const QUALITY_SPEED = { draft: 1134, standard: 486, fine: 194 };
 
-// Grams estimator
+// Estimation knobs (grams)
 const SHELL_BASE = 0.70;
 const INFILL_PORTION = 1.0 - SHELL_BASE;
-const CALIBRATION_MULT = 2.02;   // tune with slicer feedback
+const CALIBRATION_MULT = 2.02;
 const WASTE_GRAMS_PER_PART = 2.0;
 const SUPPORT_MASS_MULT = 1.25;
 
@@ -31,7 +28,7 @@ const SUPPORT_TIME_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
 
 // Prep overhead
 const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // 6m14s
-const PREP_IS_PER_PART = false;          // set true if each part is a separate print
+const PREP_IS_PER_PART = false;
 
 // Pricing
 const SMALL_FEE_THRESHOLD = 250;
@@ -52,19 +49,14 @@ const el = {
   canvas: $('viewer')
 };
 
-/* ===================== VIEWER (+ axis widget) ===================== */
+/* ===================== VIEWER ===================== */
 let renderer, scene, camera, controls, mesh;
-
-// axis overlay (transparent) with fixed center & rotating arms
-let axisScene, axisCamera, axisRoot, axisArms;
 
 initViewer();
 
 function initViewer() {
   const canvas = el.canvas;
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf3f4f6); // light gray
 
@@ -83,16 +75,6 @@ function initViewer() {
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
 
-  // --- axis widget (transparent overlay)
-  axisScene = new THREE.Scene();
-  axisScene.background = null; // transparent
-  axisCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-  axisCamera.position.set(0,0,5);
-
-  ({ root: axisRoot, arms: axisArms } = createAxisGizmo());
-  axisRoot.scale.set(1.2,1.2,1.2);
-  axisScene.add(axisRoot);
-
   animate();
 }
 function sizeViewer() {
@@ -108,22 +90,7 @@ function sizeViewer() {
 function animate() {
   requestAnimationFrame(animate);
   controls?.update();
-
-  // main scene
-  const d = renderer.domElement;
-  renderer.setViewport(0, 0, d.width, d.height);
-  renderer.setScissorTest(false);
-  renderer.render(scene, camera);
-
-  // axis overlay in bottom-left (only arms rotate)
-  const inset = 100;
-  renderer.clearDepth();
-  axisArms.quaternion.copy(camera.quaternion); // keep center fixed
-  renderer.setViewport(10, 10, inset, inset);
-  renderer.setScissor(10, 10, inset, inset);
-  renderer.setScissorTest(true);
-  renderer.render(axisScene, axisCamera);
-  renderer.setScissorTest(false);
+  renderer?.render(scene, camera);
 }
 function clearViewer() {
   if (mesh) {
@@ -132,82 +99,15 @@ function clearViewer() {
     mesh.material.dispose?.();
     mesh = null;
   }
+  // optional: reset camera/controls a bit
   controls?.target.set(0,0,0);
   camera?.position.set(120,120,120);
   renderer?.render(scene, camera);
 }
 
-/* ===== lollipop axis gizmo ===== */
-function createAxisGizmo() {
-  const root = new THREE.Group();
-  const arms = new THREE.Group();   // only this rotates
-
-  const mkArm = (color) =>
-    new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.04, 2.0, 16),
-      new THREE.MeshBasicMaterial({ color })
-    );
-
-  function makeLabeledCap(letter, color, radiusPx = 42) {
-    const size = radiusPx * 2;
-    const cvs = document.createElement('canvas');
-    cvs.width = cvs.height = size;
-    const ctx = cvs.getContext('2d');
-
-    // circle
-    ctx.beginPath();
-    ctx.arc(size/2, size/2, radiusPx*0.82, 0, Math.PI*2);
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    // label
-    ctx.fillStyle = '#fff';
-    ctx.font = `${Math.floor(radiusPx*1.0)}px system-ui,Segoe UI,Roboto,Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(letter, size/2, size/2);
-
-    const tex = new THREE.CanvasTexture(cvs);
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false }));
-    spr.scale.set(0.75, 0.75, 0.75);
-    return spr;
-  }
-
-  const dotGeo = new THREE.SphereGeometry(0.09, 16, 16);
-  const mkDot = (color) => new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color }));
-
-  // CENTER (fixed, not rotating)
-  const center = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12,16,16),
-    new THREE.MeshBasicMaterial({ color: 0x444444 })
-  );
-  root.add(center);
-
-  // X (red)
-  { const arm = mkArm(0xff4d4d); arm.rotation.z = Math.PI/2; arm.position.x = 1.0; arms.add(arm);
-    const cap = makeLabeledCap('X', '#ff4d4d'); cap.position.set(2.0,0,0); arms.add(cap);
-    const d1 = mkDot(0xff4d4d); d1.position.set(0.6,0,0); arms.add(d1);
-    const d2 = mkDot(0xff4d4d); d2.position.set(1.3,0,0); arms.add(d2);
-  }
-  // Y (green)
-  { const arm = mkArm(0x2ecc71); arm.position.y = 1.0; arms.add(arm);
-    const cap = makeLabeledCap('Y', '#2ecc71'); cap.position.set(0,2.0,0); arms.add(cap);
-    const d1 = mkDot(0x2ecc71); d1.position.set(0,0.6,0); arms.add(d1);
-    const d2 = mkDot(0x2ecc71); d2.position.set(0,1.3,0); arms.add(d2);
-  }
-  // Z (blue)
-  { const arm = mkArm(0x3b82f6); arm.rotation.x = Math.PI/2; arm.position.z = 1.0; arms.add(arm);
-    const cap = makeLabeledCap('Z', '#3b82f6'); cap.position.set(0,0,2.0); arms.add(cap);
-    const d1 = mkDot(0x3b82f6); d1.position.set(0,0,0.6); arms.add(d1);
-    const d2 = mkDot(0x3b82f6); d2.position.set(0,0,1.3); arms.add(d2);
-  }
-
-  root.add(arms);
-  return { root, arms };
-}
-
 /* ===================== STATE ===================== */
-let models = []; // { id,name,_sig,volume_mm3,bbox,qty,material,quality,infill,supports,thumbDataURL }
+// models: { id, name, _sig, volume_mm3, bbox, qty, material, quality, infill, supports, thumbDataURL }
+let models = [];
 let idSeq = 1;
 
 /* ===================== FILE INPUT (cumulative) ===================== */
@@ -220,10 +120,10 @@ el.file?.addEventListener('change', async (e) => {
 
 /* ===== Drag & Drop ===== */
 if (el.dropZone) {
-  ['dragenter','dragover'].forEach((evt) =>
+  ['dragenter','dragover'].forEach(evt =>
     el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='0.85'; })
   );
-  ['dragleave','drop'].forEach((evt) =>
+  ['dragleave','drop'].forEach(evt =>
     el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='1'; })
   );
   el.dropZone.addEventListener('drop', async (e) => {
@@ -242,8 +142,6 @@ if (el.dropZone) {
     if (!files.length) return;
     await addFiles(files);
   });
-  // make drop zone clickable
-  el.dropZone.addEventListener('click', () => el.file?.click());
 }
 
 /* ===================== ADD FILES ===================== */
@@ -256,7 +154,7 @@ async function addFiles(fileList) {
   let added = 0;
 
   for (const f of stls) {
-    if (models.some(m => m._sig === sigOf(f))) continue;
+    if (models.some(m => m._sig === sigOf(f))) continue; // dedupe name+size
 
     try {
       const buf = await f.arrayBuffer();
@@ -271,7 +169,7 @@ async function addFiles(fileList) {
         z: g.boundingBox.max.z - g.boundingBox.min.z
       };
 
-      const thumbDataURL = await makeThumbnail(g); // CLONE inside
+      const thumbDataURL = await makeThumbnail(g); // uses clone internally
 
       const model = {
         id: idSeq++,
@@ -333,7 +231,7 @@ function addFileRow(model, geometryForPreview) {
   nameWrap.appendChild(nameBtn);
   nameWrap.appendChild(vol);
 
-  // 3) settings
+  // 3) settings (material, quality, infill, supports)
   const settings = document.createElement('div');
   settings.style.display = 'grid';
   settings.style.gridTemplateColumns = '1fr 1fr 0.8fr 0.8fr';
@@ -358,6 +256,7 @@ function addFileRow(model, geometryForPreview) {
   [['no','No'],['yes','Yes']].forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; supSel.appendChild(o); });
   supSel.value = model.supports;
 
+  // attach change listeners → update model + recalc
   matSel.onchange = () => { model.material = matSel.value; recalc(); };
   qualSel.onchange = () => { model.quality = qualSel.value; recalc(); };
   infillIn.oninput = () => { model.infill = clamp(+infillIn.value||0,0,100); infillIn.value = String(model.infill); recalc(); };
@@ -376,7 +275,7 @@ function addFileRow(model, geometryForPreview) {
   qty.oninput = ()=>{ model.qty = Math.max(1, parseInt(qty.value||'1',10)); qty.value = String(model.qty); recalc(); };
   qtyWrap.appendChild(qty);
 
-  // 5) price cell
+  // 5) price cell (auto-filled)
   const priceCell = document.createElement('div');
   priceCell.className = 'price-chip';
   priceCell.id = `price-${model.id}`;
@@ -395,7 +294,7 @@ function addFileRow(model, geometryForPreview) {
       el.summary.innerHTML = '';
       el.grandTotal.innerHTML = '';
       clearViewer();
-      updateInfo();
+      updateInfo(); // show "No models selected"
     } else {
       updateInfo();
       recalc();
@@ -439,13 +338,14 @@ async function makeThumbnail(geo) {
   const scn = new THREE.Scene();
   scn.background = new THREE.Color(0xf3f4f6);
 
+  // same +10% light vibe
   const light1 = new THREE.DirectionalLight(0xffffff, 1.1); light1.position.set(1,1,1);
   const amb = new THREE.AmbientLight(0xffffff, 0.495);
   scn.add(light1, amb);
 
   const cam = new THREE.PerspectiveCamera(50, w/h, 0.1, 10000);
 
-  const geoClone = geo.clone(); // CLONE so we can dispose safely
+  const geoClone = geo.clone();
   const m = new THREE.Mesh(geoClone, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
   scn.add(m);
 
@@ -504,6 +404,7 @@ function estimateForModel(m) {
     minutesTotal,
     materialCost, printCost,
     sub: materialCost + printCost,
+  // expose base fee for “max material baseFee” rule if needed later
     matBaseFee: mat.baseFee
   };
 }
@@ -549,13 +450,13 @@ function recalc() {
     });
   }
 
-  // prep time (once per job or per part)
+  // add prep time (once per job or per part)
   const totalParts = models.reduce((s,m)=>s+m.qty,0);
   grandMinutes += PREP_TIME_PER_JOB_MIN * (PREP_IS_PER_PART ? totalParts : 1);
 
   const grandHours = grandMinutes / 60;
 
-  // Small-order fee: use HIGHEST baseFee among selected materials
+  // apply small-order fee using HIGHEST baseFee among used materials
   const subtotal = grandSubtotal;
   let smallOrderFee;
   if (subtotal <= SMALL_FEE_THRESHOLD) {
