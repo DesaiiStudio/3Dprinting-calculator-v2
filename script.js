@@ -1,4 +1,4 @@
-// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails
+// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails (fixed)
 // Viewer: light gray bg; Model color: orange
 
 import * as THREE from 'three';
@@ -6,7 +6,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 /* ===================== CONFIG ===================== */
-// Materials (pricing + densities)
 const MATERIALS = {
   PLA:       { rate: 2.0, baseFee: 150, density_g_cm3: 1.24 },
   PETG:      { rate: 2.4, baseFee: 160, density_g_cm3: 1.27 },
@@ -14,8 +13,7 @@ const MATERIALS = {
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
 
-// Your requested linear speeds (mm/s) converted to volumetric (mm³/min) with lw=0.45
-// Draft 150mm/s @ 0.28 → 1134; Standard 90mm/s @ 0.20 → 486; Fine 60mm/s @ 0.12 → 194
+// Speeds from your targets (line width 0.45): 150/90/60 mm/s → mm³/min
 const QUALITY_SPEED = { draft: 1134, standard: 486, fine: 194 };
 
 // Estimation knobs (grams)
@@ -60,7 +58,6 @@ initViewer();
 function initViewer() {
   const canvas = el.canvas;
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf3f4f6); // light gray
 
@@ -101,45 +98,50 @@ let models = [];
 let idSeq = 1;
 
 /* ===================== FILE INPUT (cumulative) ===================== */
-el.file.addEventListener('change', async (e) => {
+el.file?.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
   await addFiles(files);
   el.file.value = '';
 });
 
-const dz = el.dropZone || document.body;
-['dragenter','dragover'].forEach(evt =>
-  dz.addEventListener(evt, (e)=>{ e.preventDefault(); dz.style.opacity='0.85'; }, false)
-);
-['dragleave','drop'].forEach(evt =>
-  dz.addEventListener(evt, (e)=>{ e.preventDefault(); dz.style.opacity='1'; }, false)
-);
-dz.addEventListener('drop', async (e) => {
-  const items = e.dataTransfer?.items;
-  let files = [];
-  if (items && items.length) {
-    for (const it of items) {
-      if (it.kind === 'file') {
-        const f = it.getAsFile();
-        if (f) files.push(f);
+/* ===== Drag & Drop ===== */
+if (el.dropZone) {
+  ['dragenter','dragover'].forEach(evt =>
+    el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='0.85'; })
+  );
+  ['dragleave','drop'].forEach(evt =>
+    el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='1'; })
+  );
+  el.dropZone.addEventListener('drop', async (e) => {
+    const items = e.dataTransfer?.items;
+    let files = [];
+    if (items && items.length) {
+      for (const it of items) {
+        if (it.kind === 'file') {
+          const f = it.getAsFile();
+          if (f) files.push(f);
+        }
       }
+    } else {
+      files = Array.from(e.dataTransfer?.files || []);
     }
-  } else {
-    files = Array.from(e.dataTransfer?.files || []);
-  }
-  if (!files.length) return;
-  await addFiles(files);
-});
+    if (!files.length) return;
+    await addFiles(files);
+  });
+}
 
 /* ===================== ADD FILES ===================== */
 async function addFiles(fileList) {
   const stls = fileList.filter(f => /\.stl$/i.test(f.name));
-  if (!stls.length) return;
-
+  if (!stls.length) {
+    el.fileInfo.textContent = 'Only .stl files are supported.';
+    return;
+  }
   let added = 0;
+
   for (const f of stls) {
-    if (models.some(m => m._sig === sigOf(f))) continue;
+    if (models.some(m => m._sig === sigOf(f))) continue; // dedupe name+size
 
     try {
       const buf = await f.arrayBuffer();
@@ -154,7 +156,7 @@ async function addFiles(fileList) {
         z: g.boundingBox.max.z - g.boundingBox.min.z
       };
 
-      const thumbDataURL = await makeThumbnail(g);
+      const thumbDataURL = await makeThumbnail(g); // uses CLONE now (fix)
 
       const model = {
         id: idSeq++,
@@ -164,7 +166,7 @@ async function addFiles(fileList) {
         bbox,
         qty: 1,
         material: 'PLA',
-        quality: 'standard', // default
+        quality: 'standard',
         infill: 15,
         supports: 'no',
         thumbDataURL
@@ -182,7 +184,7 @@ async function addFiles(fileList) {
   if (added) {
     el.fileListWrap.style.display = 'block';
     el.fileInfo.textContent = `Total models: ${models.length}`;
-    recalc(); // auto-calc after adding
+    recalc();
   }
 }
 function sigOf(file){ return `${file.name}::${file.size}`; }
@@ -223,14 +225,12 @@ function addFileRow(model, geometryForPreview) {
   settings.style.gap = '8px';
 
   const matSel = document.createElement('select');
-  matSel.className = 'select';
   ['PLA','PETG','ABS','PETG-CF'].forEach(v=>{
     const o = document.createElement('option'); o.value=v; o.textContent=v; matSel.appendChild(o);
   });
   matSel.value = model.material;
 
   const qualSel = document.createElement('select');
-  qualSel.className = 'select';
   [['draft','Draft (0.28)'],['standard','Standard (0.20)'],['fine','Fine (0.12)']]
     .forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; qualSel.appendChild(o); });
   qualSel.value = model.quality;
@@ -240,7 +240,6 @@ function addFileRow(model, geometryForPreview) {
   infillIn.value = String(model.infill); infillIn.className = 'number short';
 
   const supSel = document.createElement('select');
-  supSel.className='select';
   [['no','No'],['yes','Yes']].forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; supSel.appendChild(o); });
   supSel.value = model.supports;
 
@@ -248,7 +247,7 @@ function addFileRow(model, geometryForPreview) {
   matSel.onchange = () => { model.material = matSel.value; recalc(); };
   qualSel.onchange = () => { model.quality = qualSel.value; recalc(); };
   infillIn.oninput = () => { model.infill = clamp(+infillIn.value||0,0,100); infillIn.value = String(model.infill); recalc(); };
-  supSel.onchange = () => { model.supports = supSel.value; recalc(); };
+  supSel.onchange   = () => { model.supports = supSel.value; recalc(); };
 
   settings.appendChild(matSel);
   settings.appendChild(qualSel);
@@ -272,7 +271,7 @@ function addFileRow(model, geometryForPreview) {
   // 6) remove
   const rmv = document.createElement('button');
   rmv.textContent = 'Remove';
-  rmv.className = 'pill';
+  Object.assign(rmv.style, { border:'1px solid #ef4444', background:'#fff', color:'#ef4444', padding:'6px 10px', borderRadius:'8px', cursor:'pointer' });
   rmv.onclick = () => {
     models = models.filter(m => m.id !== model.id);
     row.remove();
@@ -313,7 +312,7 @@ function renderMesh(geo) {
   camera.lookAt(center);
 }
 
-/* ===================== THUMBNAIL ===================== */
+/* ===================== THUMBNAIL (uses CLONED geometry — fix) ===================== */
 async function makeThumbnail(geo) {
   const w = 140, h = 100;
   const canvas = document.createElement('canvas');
@@ -328,7 +327,8 @@ async function makeThumbnail(geo) {
 
   const cam = new THREE.PerspectiveCamera(50, w/h, 0.1, 10000);
 
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
+  const geoClone = geo.clone(); // IMPORTANT: use a clone so we can safely dispose it
+  const m = new THREE.Mesh(geoClone, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
   scn.add(m);
 
   const box = new THREE.Box3().setFromObject(m);
@@ -343,9 +343,10 @@ async function makeThumbnail(geo) {
   r.render(scn, cam);
 
   const url = canvas.toDataURL('image/png');
-  r.dispose();
+  // dispose CLONE only
   m.geometry.dispose();
   m.material.dispose();
+  r.dispose();
   return url;
 }
 
@@ -404,10 +405,9 @@ function recalc() {
   let grandGrams = 0;
   let grandMinutes = 0;
   let grandSubtotal = 0;
-  let maxBaseFee = 0; // highest small-fee among selected filaments (per your rule)
+  let maxBaseFee = 0;
   const items = [];
 
-  // per-row update
   for (const m of models) {
     const est = estimateForModel(m);
     grandGrams   += est.gramsTotal;
@@ -415,8 +415,7 @@ function recalc() {
     grandSubtotal += est.sub;
     maxBaseFee = Math.max(maxBaseFee, est.matBaseFee);
 
-    // update row price (rounded up per-part subtotal, not including small fee)
-    const rowPrice = Math.ceil(est.sub);
+    const rowPrice = Math.ceil(est.sub); // per-item price (no small fee)
     const priceCell = document.getElementById(`price-${m.id}`);
     if (priceCell) priceCell.textContent = String(rowPrice);
 
@@ -449,9 +448,6 @@ function recalc() {
     smallOrderFee = Math.max(maxBaseFee - reduction, 0);
   }
 
-  // grand total
-  const materialCost = grandGrams * avgRateWeightedByItems(items); // informational only (not shown per your UI)
-  const printCost    = grandHours * PRINT_RATE_PER_HOUR;           // informational only
   const finalPrice   = Math.ceil(subtotal + smallOrderFee);
 
   // UI summary
@@ -465,7 +461,6 @@ function recalc() {
   el.grandTotal.innerHTML = `<div class="total"><h2>Total price: ${finalPrice} THB</h2></div>`;
   el.download.disabled = false;
 
-  // download payload
   el.download.onclick = () => {
     const payload = {
       totals: {
@@ -491,53 +486,6 @@ function recalc() {
   };
 }
 
-// average material rate weighted by each item’s grams (for info only)
-function avgRateWeightedByItems(items){
-  let totalGrams = 0, sum = 0;
-  for (const it of items){
-    const rate = MATERIALS[it.material].rate;
-    totalGrams += it.grams_total;
-    sum += it.grams_total * rate;
-  }
-  return totalGrams ? (sum/totalGrams) : 0;
-}
-
 /* ===================== HELPERS ===================== */
 function round(n,d){return Math.round(n*10**d)/10**d}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-
-/* ===================== UTIL ===================== */
-async function makeThumbnail(geo) {
-  const w = 140, h = 100;
-  const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  const r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-  const scn = new THREE.Scene();
-  scn.background = new THREE.Color(0xf3f4f6);
-
-  const light1 = new THREE.DirectionalLight(0xffffff, 1.0); light1.position.set(1,1,1);
-  const amb = new THREE.AmbientLight(0xffffff, 0.45);
-  scn.add(light1, amb);
-
-  const cam = new THREE.PerspectiveCamera(50, w/h, 0.1, 10000);
-
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
-  scn.add(m);
-
-  const box = new THREE.Box3().setFromObject(m);
-  const size = new THREE.Vector3(); box.getSize(size);
-  const center = new THREE.Vector3(); box.getCenter(center);
-
-  const dist = Math.max(size.x, size.y, size.z) * 2.6 + 10;
-  cam.position.set(center.x + dist, center.y + dist, center.z + dist);
-  cam.lookAt(center);
-
-  r.setSize(w, h, false);
-  r.render(scn, cam);
-
-  const url = canvas.toDataURL('image/png');
-  r.dispose();
-  m.geometry.dispose();
-  m.material.dispose();
-  return url;
-}
