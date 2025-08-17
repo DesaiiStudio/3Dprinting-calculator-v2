@@ -21,7 +21,11 @@ const WASTE_GRAMS_PER_PART = 2.0;        // purge/brim/etc per part
 const SUPPORT_MASS_MULT = 1.25;          // extra grams when supports=yes
 
 // Volumetric flow (mm³/min) per quality (~60mm/s w/ 70% efficiency)
-const QUALITY_SPEED = { draft: 320, standard: 230, fine: 140 };
+const QUALITY_SPEED = {
+  draft: 1134,     // 150 mm/s @ 0.28 mm
+  standard: 486,   // 90 mm/s @ 0.20 mm
+  fine: 194        // 60 mm/s @ 0.12 mm
+};
 
 // Time multipliers
 const INFILL_TIME_MULT = (p) => 0.85 + (clamp(p, 0, 100)/100) * 0.60;  // 0%→0.85, 100%→1.45
