@@ -1,12 +1,12 @@
-// script.js — ES Module (STL-only estimator)
+// script.js — ES Module (STL-only estimator with calibrated grams + corrected time helpers)
+// Load with: <script type="module" src="script.js"></script> (quote.html has an importmap)
 
-// Imports via import map
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-/* ================= CONFIG ================= */
-// ===== Material pricing + densities (unchanged) =====
+/* ===================== CONFIG ===================== */
+// Material pricing + densities
 const MATERIALS = {
   PLA:       { rate: 2.0, baseFee: 150, density_g_cm3: 1.24 },
   PETG:      { rate: 2.4, baseFee: 160, density_g_cm3: 1.27 },
@@ -14,27 +14,26 @@ const MATERIALS = {
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
 
-// ===== Estimator knobs (tune to your printer) =====
-// Base shell mass share at 0% infill (was ~0.38; increase for thicker perimeters)
-const SHELL_BASE = 0.70;          // 0.65–0.80 typical for “strong” walls
-// Infill contribution up to 100% (rest of mass)
-const INFILL_PORTION = 1.00 - SHELL_BASE;  // here 0.30
+// Estimator knobs (tune to your printer)
+const SHELL_BASE = 0.70;                 // mass share at 0% infill (walls/top/bottom)
+const INFILL_PORTION = 1.00 - SHELL_BASE;
+const CALIBRATION_MULT = 2.02;           // set from your real data (≈ (11/6 + 128/58)/2 )
+const WASTE_GRAMS_PER_PART = 2.0;        // purge/brim/etc per part
+const SUPPORT_MASS_MULT = 1.25;          // extra grams when supports=yes
 
-// Global calibration multiplier to match slicer totals (your data suggests ~1.9–2.2)
-const CALIBRATION_MULT = 2.0;     // set 1.9..2.1 to best match your slicer
-
-// Extra grams not in STL: purge/prime, brim/raft, small wastes (per part)
-const WASTE_GRAMS_PER_PART = 1.5; // bump to 2–4 g if you brim/raft a lot
-// Supports add material too (separate from time)
-const SUPPORT_MASS_MULT = 1.20;   // 20% more grams when supports = yes
-
-// Time model (unchanged from your last version; adjust if needed)
+// Volumetric flow (mm³/min) per quality (≈60 mm/s w/ 70% efficiency)
 const QUALITY_SPEED = { draft: 320, standard: 230, fine: 140 };
-const SMALL_FEE_THRESHOLD = 250;
-const SMALL_FEE_TAPER     = 400;
-const PRINT_RATE_PER_HOUR = 10;
 
-/* ================= DOM ================= */
+// Time multipliers
+const INFILL_TIME_MULT = (p) => 0.85 + (clamp(p, 0, 100)/100) * 0.60;  // 0%→0.85, 100%→1.45
+const SUPPORT_TIME_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
+
+// Pricing constants
+const SMALL_FEE_THRESHOLD = 250; // THB
+const SMALL_FEE_TAPER     = 400; // THB
+const PRINT_RATE_PER_HOUR = 10;  // THB/hr
+
+/* ===================== DOM ===================== */
 const $ = (id) => document.getElementById(id);
 const el = {
   file: $('stlFile'),
@@ -51,7 +50,7 @@ const el = {
   canvas: $('viewer')
 };
 
-/* ================= VIEWER ================= */
+/* ===================== VIEWER ===================== */
 let renderer, scene, camera, controls, mesh;
 
 initViewer();
@@ -67,6 +66,7 @@ function initViewer() {
   key.position.set(1,1,1);
   scene.add(key, new THREE.AmbientLight(0xffffff, 0.45));
 
+  // Create camera before sizing
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
   camera.position.set(120,120,120);
 
@@ -94,7 +94,7 @@ function animate() {
   renderer?.render(scene, camera);
 }
 
-/* ================= STL → metrics ================= */
+/* ===================== STL → METRICS ===================== */
 let model = { volume_mm3: 0, bbox: {x:0,y:0,z:0} };
 
 el.file.addEventListener('change', async (e) => {
@@ -161,41 +161,34 @@ function computeVolume(geo) {
   return Math.abs(v)/6;
 }
 
-/* ================= Estimator + Pricing ================= */
+/* ===================== ESTIMATOR + PRICING ===================== */
 el.calcBtn.addEventListener('click', () => {
   const matKey = el.material.value;
   const mat = MATERIALS[matKey];
-  const quality = el.quality.value;            // draft/standard/fine
+  const quality = el.quality.value;
   const infill = clamp(+el.infill.value || 0, 0, 100);
-  const supports = el.supports.value;          // yes/no
+  const supports = el.supports.value;
   const qty = Math.max(1, +el.qty.value || 1);
 
-  // 1) grams (uses STL volume, material density and fill factor)
-  const gramsPerPart_raw = (model.volume_mm3 / 1000) * mat.density_g_cm3;
-  // shells + infill blend (0% infill still has walls)
-  const fillFactor = SHELL_BASE + (INFILL_PORTION * (clamp(+el.infill.value || 0, 0, 100) / 100));
-  // supports multiplier
-  const supportMult = (el.supports.value === 'yes') ? SUPPORT_MASS_MULT : 1.0;
-  
-  // calibrated grams per part
-  const gramsPerPart = gramsPerPart_raw * fillFactor * supportMult * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
-  const totalGrams   = gramsPerPart * Math.max(1, +el.qty.value || 1);
+  // ---- grams (calibrated) ----
+  const grams_raw = (model.volume_mm3 / 1000) * mat.density_g_cm3;      // solid grams
+  const fillFactor = SHELL_BASE + INFILL_PORTION * (infill/100);        // walls + infill
+  const supportMass = (supports === 'yes') ? SUPPORT_MASS_MULT : 1.0;
+  const gramsPerPart = grams_raw * fillFactor * supportMass * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
+  const totalGrams = gramsPerPart * qty;
 
-  // 2) time estimator
-  const baseSpeed = QUALITY_SPEED[quality];                // mm^3/min
-  const timeMult = INFILL_TIME_MULT(infill) * SUPPORT_MULT(supports);
+  // ---- time (mm³ → minutes) ----
+  const baseSpeed = QUALITY_SPEED[quality];                              // mm³/min
+  const timeMult  = INFILL_TIME_MULT(infill) * SUPPORT_TIME_MULT(supports);
   const timeMinPerPart = (model.volume_mm3 / baseSpeed) * timeMult;
   const totalMinutes = timeMinPerPart * qty;
   const totalHours = totalMinutes / 60;
 
-  // --- Your pricing rules ---
-  // Material fee
+  // ---- pricing rules ----
   const materialCost = totalGrams * mat.rate;
-  // Printing time fee
-  const printCost = totalHours * PRINT_RATE_PER_HOUR;
-  // Subtotal
-  const subtotal = materialCost + printCost;
-  // Small order fee (dynamic)
+  const printCost    = totalHours * PRINT_RATE_PER_HOUR;
+  const subtotal     = materialCost + printCost;
+
   let smallOrderFee;
   if (subtotal <= SMALL_FEE_THRESHOLD) {
     smallOrderFee = mat.baseFee;
@@ -203,10 +196,10 @@ el.calcBtn.addEventListener('click', () => {
     const reduction = ((subtotal - SMALL_FEE_THRESHOLD) / SMALL_FEE_TAPER) * mat.baseFee;
     smallOrderFee = Math.max(mat.baseFee - reduction, 0);
   }
-  // Final (ceil)
+
   const finalPrice = Math.ceil(subtotal + smallOrderFee);
 
-  // UI
+  // ---- UI ----
   el.summary.innerHTML = `
     <li><span>Filament</span><strong>${matKey}</strong></li>
     <li><span>Total used</span><strong>${round(totalGrams,2)} g</strong></li>
@@ -216,12 +209,16 @@ el.calcBtn.addEventListener('click', () => {
   `;
   el.grandTotal.innerHTML = `<div class="total"><h2>Total price: ${finalPrice} THB</h2></div>`;
 
-  // JSON download
   const payload = {
-    filament: matKey, quantity: qty,
+    filament: matKey,
+    quantity: qty,
     gramsPerPart: round(gramsPerPart,2),
     totalGrams: round(totalGrams,2),
-    estTime: { minutes: Math.round(totalMinutes), hours: Math.floor(totalHours), remMinutes: Math.round((totalHours%1)*60) },
+    estTime: {
+      minutes: Math.round(totalMinutes),
+      hours: Math.floor(totalHours),
+      remMinutes: Math.round((totalHours%1)*60)
+    },
     materialCost: round(materialCost,2),
     printCost: round(printCost,2),
     smallOrderFee: round(smallOrderFee,2),
@@ -236,7 +233,7 @@ el.calcBtn.addEventListener('click', () => {
   };
 });
 
-/* ================= helpers ================= */
+/* ===================== HELPERS ===================== */
 function round(n,d){return Math.round(n*10**d)/10**d}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
 function resetOutputs(){
