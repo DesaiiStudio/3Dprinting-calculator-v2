@@ -1,5 +1,6 @@
 // script.js — multi-file quote tool with per-file settings, auto-calc, drag&drop, thumbnails
-// Viewer: light gray bg, orange model, +10% lights, bottom-left “lollipop” axis gizmo
+// Viewer: light gray bg, orange model, +10% lights, bottom-left axis gizmo
+// Axis gizmo center stays fixed; only arms rotate; overlay is transparent.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -54,8 +55,8 @@ const el = {
 /* ===================== VIEWER (+ axis widget) ===================== */
 let renderer, scene, camera, controls, mesh;
 
-// axis overlay scene
-let axisScene, axisCamera, axisGizmo;
+// axis overlay (transparent) with fixed center & rotating arms
+let axisScene, axisCamera, axisRoot, axisArms;
 
 initViewer();
 
@@ -82,14 +83,15 @@ function initViewer() {
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
 
-  // --- axis widget ---
+  // --- axis widget (transparent overlay)
   axisScene = new THREE.Scene();
+  axisScene.background = null; // transparent
   axisCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-  axisCamera.up = camera.up;
   axisCamera.position.set(0,0,5);
-  axisGizmo = createAxisGizmo();
-  axisGizmo.scale.set(1.2,1.2,1.2);
-  axisScene.add(axisGizmo);
+
+  ({ root: axisRoot, arms: axisArms } = createAxisGizmo());
+  axisRoot.scale.set(1.2,1.2,1.2);
+  axisScene.add(axisRoot);
 
   animate();
 }
@@ -113,10 +115,10 @@ function animate() {
   renderer.setScissorTest(false);
   renderer.render(scene, camera);
 
-  // axis overlay in bottom-left
+  // axis overlay in bottom-left (only arms rotate)
   const inset = 100;
   renderer.clearDepth();
-  axisCamera.quaternion.copy(camera.quaternion);
+  axisArms.quaternion.copy(camera.quaternion); // keep center fixed
   renderer.setViewport(10, 10, inset, inset);
   renderer.setScissor(10, 10, inset, inset);
   renderer.setScissorTest(true);
@@ -137,7 +139,8 @@ function clearViewer() {
 
 /* ===== lollipop axis gizmo ===== */
 function createAxisGizmo() {
-  const g = new THREE.Group();
+  const root = new THREE.Group();
+  const arms = new THREE.Group();   // only this rotates
 
   const mkArm = (color) =>
     new THREE.Mesh(
@@ -151,15 +154,13 @@ function createAxisGizmo() {
     cvs.width = cvs.height = size;
     const ctx = cvs.getContext('2d');
 
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = radiusPx * 0.35;
-
+    // circle
     ctx.beginPath();
     ctx.arc(size/2, size/2, radiusPx*0.82, 0, Math.PI*2);
     ctx.fillStyle = color;
     ctx.fill();
 
-    ctx.shadowBlur = 0;
+    // label
     ctx.fillStyle = '#fff';
     ctx.font = `${Math.floor(radiusPx*1.0)}px system-ui,Segoe UI,Roboto,Arial`;
     ctx.textAlign = 'center';
@@ -167,9 +168,7 @@ function createAxisGizmo() {
     ctx.fillText(letter, size/2, size/2);
 
     const tex = new THREE.CanvasTexture(cvs);
-    tex.anisotropy = 4;
-    const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false });
-    const spr = new THREE.Sprite(mat);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false }));
     spr.scale.set(0.75, 0.75, 0.75);
     return spr;
   }
@@ -177,29 +176,34 @@ function createAxisGizmo() {
   const dotGeo = new THREE.SphereGeometry(0.09, 16, 16);
   const mkDot = (color) => new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color }));
 
-  // origin dot
-  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.12,16,16),
-       new THREE.MeshBasicMaterial({ color: 0x444444 })));
+  // CENTER (fixed, not rotating)
+  const center = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12,16,16),
+    new THREE.MeshBasicMaterial({ color: 0x444444 })
+  );
+  root.add(center);
 
   // X (red)
-  { const arm = mkArm(0xff4d4d); arm.rotation.z = Math.PI/2; arm.position.x = 1.0; g.add(arm);
-    const cap = makeLabeledCap('X', '#ff4d4d'); cap.position.set(2.0,0,0); g.add(cap);
-    const d1 = mkDot(0xff4d4d); d1.position.set(0.6,0,0); g.add(d1);
-    const d2 = mkDot(0xff4d4d); d2.position.set(1.3,0,0); g.add(d2);
+  { const arm = mkArm(0xff4d4d); arm.rotation.z = Math.PI/2; arm.position.x = 1.0; arms.add(arm);
+    const cap = makeLabeledCap('X', '#ff4d4d'); cap.position.set(2.0,0,0); arms.add(cap);
+    const d1 = mkDot(0xff4d4d); d1.position.set(0.6,0,0); arms.add(d1);
+    const d2 = mkDot(0xff4d4d); d2.position.set(1.3,0,0); arms.add(d2);
   }
   // Y (green)
-  { const arm = mkArm(0x2ecc71); arm.position.y = 1.0; g.add(arm);
-    const cap = makeLabeledCap('Y', '#2ecc71'); cap.position.set(0,2.0,0); g.add(cap);
-    const d1 = mkDot(0x2ecc71); d1.position.set(0,0.6,0); g.add(d1);
-    const d2 = mkDot(0x2ecc71); d2.position.set(0,1.3,0); g.add(d2);
+  { const arm = mkArm(0x2ecc71); arm.position.y = 1.0; arms.add(arm);
+    const cap = makeLabeledCap('Y', '#2ecc71'); cap.position.set(0,2.0,0); arms.add(cap);
+    const d1 = mkDot(0x2ecc71); d1.position.set(0,0.6,0); arms.add(d1);
+    const d2 = mkDot(0x2ecc71); d2.position.set(0,1.3,0); arms.add(d2);
   }
   // Z (blue)
-  { const arm = mkArm(0x3b82f6); arm.rotation.x = Math.PI/2; arm.position.z = 1.0; g.add(arm);
-    const cap = makeLabeledCap('Z', '#3b82f6'); cap.position.set(0,0,2.0); g.add(cap);
-    const d1 = mkDot(0x3b82f6); d1.position.set(0,0,0.6); g.add(d1);
-    const d2 = mkDot(0x3b82f6); d2.position.set(0,0,1.3); g.add(d2);
+  { const arm = mkArm(0x3b82f6); arm.rotation.x = Math.PI/2; arm.position.z = 1.0; arms.add(arm);
+    const cap = makeLabeledCap('Z', '#3b82f6'); cap.position.set(0,0,2.0); arms.add(cap);
+    const d1 = mkDot(0x3b82f6); d1.position.set(0,0,0.6); arms.add(d1);
+    const d2 = mkDot(0x3b82f6); d2.position.set(0,0,1.3); arms.add(d2);
   }
-  return g;
+
+  root.add(arms);
+  return { root, arms };
 }
 
 /* ===================== STATE ===================== */
@@ -219,9 +223,9 @@ if (el.dropZone) {
   ['dragenter','dragover'].forEach(evt =>
     el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='0.85'; })
   );
-  ['dragleave','drop'].forEach(evt =>
+  ['dragleave','drop'].forEach evt =>
     el.dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); el.dropZone.style.opacity='1'; })
-  );
+  ;
   el.dropZone.addEventListener('drop', async (e) => {
     const items = e.dataTransfer?.items;
     let files = [];
@@ -327,7 +331,7 @@ function addFileRow(model, geometryForPreview) {
   nameWrap.appendChild(nameBtn);
   nameWrap.appendChild(vol);
 
-  // 3) settings (material, quality, infill, supports)
+  // 3) settings
   const settings = document.createElement('div');
   settings.style.display = 'grid';
   settings.style.gridTemplateColumns = '1fr 1fr 0.8fr 0.8fr';
@@ -352,7 +356,6 @@ function addFileRow(model, geometryForPreview) {
   [['no','No'],['yes','Yes']].forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; supSel.appendChild(o); });
   supSel.value = model.supports;
 
-  // change listeners → update model + recalc
   matSel.onchange = () => { model.material = matSel.value; recalc(); };
   qualSel.onchange = () => { model.quality = qualSel.value; recalc(); };
   infillIn.oninput = () => { model.infill = clamp(+infillIn.value||0,0,100); infillIn.value = String(model.infill); recalc(); };
@@ -371,7 +374,7 @@ function addFileRow(model, geometryForPreview) {
   qty.oninput = ()=>{ model.qty = Math.max(1, parseInt(qty.value||'1',10)); qty.value = String(model.qty); recalc(); };
   qtyWrap.appendChild(qty);
 
-  // 5) price cell (auto-filled)
+  // 5) price cell
   const priceCell = document.createElement('div');
   priceCell.className = 'price-chip';
   priceCell.id = `price-${model.id}`;
@@ -606,4 +609,3 @@ function updateInfo() {
 }
 function round(n,d){return Math.round(n*10**d)/10**d}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-
