@@ -1,5 +1,4 @@
-// script.js — ES Module (STL-only estimator with calibrated grams + corrected time helpers)
-// Load with: <script type="module" src="script.js"></script> (quote.html has an importmap)
+// script.js — ES Module (STL-only estimator with calibrated grams + prep overhead)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -17,16 +16,20 @@ const MATERIALS = {
 // Estimator knobs (tune to your printer)
 const SHELL_BASE = 0.70;                 // mass share at 0% infill (walls/top/bottom)
 const INFILL_PORTION = 1.00 - SHELL_BASE;
-const CALIBRATION_MULT = 2.02;           // set from your real data (≈ (11/6 + 128/58)/2 )
+const CALIBRATION_MULT = 2.02;           // from your examples (≈2.02)
 const WASTE_GRAMS_PER_PART = 2.0;        // purge/brim/etc per part
 const SUPPORT_MASS_MULT = 1.25;          // extra grams when supports=yes
 
-// Volumetric flow (mm³/min) per quality (≈60 mm/s w/ 70% efficiency)
+// Volumetric flow (mm³/min) per quality (~60mm/s w/ 70% efficiency)
 const QUALITY_SPEED = { draft: 320, standard: 230, fine: 140 };
 
 // Time multipliers
 const INFILL_TIME_MULT = (p) => 0.85 + (clamp(p, 0, 100)/100) * 0.60;  // 0%→0.85, 100%→1.45
 const SUPPORT_TIME_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
+
+// **NEW** Prep overhead (bed warmup, homing, purge, etc.)
+const PREP_TIME_PER_JOB_MIN = 6 + 14/60; // 6m14s ≈ 6.2333 min
+const PREP_IS_PER_PART = false;          // set true if you run each part as its own print
 
 // Pricing constants
 const SMALL_FEE_THRESHOLD = 250; // THB
@@ -66,7 +69,6 @@ function initViewer() {
   key.position.set(1,1,1);
   scene.add(key, new THREE.AmbientLight(0xffffff, 0.45));
 
-  // Create camera before sizing
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
   camera.position.set(120,120,120);
 
@@ -181,7 +183,11 @@ el.calcBtn.addEventListener('click', () => {
   const baseSpeed = QUALITY_SPEED[quality];                              // mm³/min
   const timeMult  = INFILL_TIME_MULT(infill) * SUPPORT_TIME_MULT(supports);
   const timeMinPerPart = (model.volume_mm3 / baseSpeed) * timeMult;
-  const totalMinutes = timeMinPerPart * qty;
+
+  // **add prep time** (once per job, or per part if you flip the flag)
+  const prepMinutes = PREP_TIME_PER_JOB_MIN * (PREP_IS_PER_PART ? qty : 1);
+
+  const totalMinutes = timeMinPerPart * qty + prepMinutes;
   const totalHours = totalMinutes / 60;
 
   // ---- pricing rules ----
@@ -217,7 +223,9 @@ el.calcBtn.addEventListener('click', () => {
     estTime: {
       minutes: Math.round(totalMinutes),
       hours: Math.floor(totalHours),
-      remMinutes: Math.round((totalHours%1)*60)
+      remMinutes: Math.round((totalHours%1)*60),
+      prepMinutes: PREP_TIME_PER_JOB_MIN,
+      prepMode: PREP_IS_PER_PART ? 'per-part' : 'per-job'
     },
     materialCost: round(materialCost,2),
     printCost: round(printCost,2),
