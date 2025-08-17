@@ -1,31 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Get an Instant 3D Print Quote</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Instant Quote • 3D Printing</title>
+  <link rel="icon" href="data:," />
+  <!-- Optional site stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Import map so addons can import 'three' by name -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <!-- Minimal inline styles so page looks OK without style.css -->
   <style>
-    body { margin:0; font-family: Arial, sans-serif; }
-    header, footer { background:#333; color:#fff; padding:10px; }
-    header nav a { margin-right:10px; color:#fff; text-decoration:none; }
-    header nav a.active { font-weight:bold; }
-    .container { padding:20px; }
-    .viewer-wrap { border:1px solid #ccc; margin-top:10px; }
-    #viewer { width:100%; height:400px; display:block; }
-    #dropZone {
-      border:2px dashed #aaa; padding:20px; text-align:center;
-      margin:10px 0; background:#fafafa;
-    }
-    #fileList { margin-top:20px; }
-    .file-item {
-      border:1px solid #ddd; padding:10px; margin-bottom:10px;
-      display:flex; gap:10px; align-items:flex-start;
-    }
-    .thumb { width:80px; height:80px; background:#eee; flex-shrink:0; }
-    .settings { flex:1; }
-    .remove-btn { background:red; color:white; border:none; padding:5px 10px; cursor:pointer; }
-    .price { margin-top:5px; font-weight:bold; }
+    :root { color-scheme: light; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;margin:24px;color:#111}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    nav a{margin-right:12px;color:#111;text-decoration:none}
+    nav a.active{font-weight:600;text-decoration:underline}
+    .container{max-width:1100px;margin:0 auto;display:grid;gap:20px}
+    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff}
+    .viewer-wrap{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#f3f4f6;margin-top:10px}
+    #viewer{width:100%;height:360px;display:block}
+    .muted{color:#555}
+    .btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
+    .btn[disabled]{opacity:.45;cursor:not-allowed}
+    #dropZone{ text-align:center;padding:18px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:12px }
+    .grid-head{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;font-size:12px;color:#6b7280;padding:2px 0}
+    .file-row{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;align-items:center;border-bottom:1px dashed #e5e7eb;padding:8px 0}
+    .mini{font-size:12px;color:#6b7280}
+    .price-chip{font-weight:700}
+    .pill{display:inline-block;padding:6px 10px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer}
+    .select,.number,.short{width:100%}
+    .short{max-width:90px}
+    ul.break{list-style:none;padding:0;margin:0}
+    ul.break li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
+    footer{margin-top:24px;color:#666}
   </style>
 </head>
 <body>
@@ -39,44 +56,42 @@
   </header>
 
   <main class="container">
-    <section>
-      <h2>Upload your STL</h2>
-      <input id="stlFile" type="file" accept=".stl" multiple>
-      <div id="dropZone">Drag & Drop STL files here</div>
-    </section>
-
-    <section>
-      <h2>Models</h2>
-      <div id="fileList"></div>
-    </section>
-
-    <section>
-      <h2>Viewer</h2>
+    <!-- 1) Upload & Viewer -->
+    <section class="card">
+      <h2>1) Upload your STL files</h2>
+      <input id="stlFile" type="file" accept=".stl" multiple />
+      <p class="muted">Drag & drop supported. Units assumed <b>mm</b>.</p>
+      <div id="dropZone">Drag & drop .stl files here</div>
+      <div id="fileInfo" class="muted" style="margin-top:8px;"></div>
       <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
     </section>
 
-    <section>
-      <h2>Total</h2>
-      <div id="grandTotal"></div>
-      <button id="downloadQuote" disabled>Download quote (.json)</button>
+    <!-- 2) Per-file settings & inline prices -->
+    <section class="card" id="fileListWrap" style="display:none;">
+      <h2>2) Models & settings</h2>
+      <div class="grid-head">
+        <div>Preview</div>
+        <div>Model</div>
+        <div>Settings</div>
+        <div>Qty</div>
+        <div>Price (THB)</div>
+        <div></div>
+      </div>
+      <div id="fileList"></div>
+    </section>
+
+    <!-- 3) Totals -->
+    <section class="card">
+      <h2>3) Price breakdown</h2>
+      <ul id="summaryList" class="break"></ul>
+      <div id="grandTotal" class="total"></div>
+      <button id="downloadQuote" class="btn" disabled>Download quote (.json)</button>
     </section>
   </main>
 
-  <footer>
-    <p>© 2025 Your 3D Printing Service</p>
-  </footer>
+  <footer>© 2025 Your 3D Printing Service</footer>
 
-  <!-- Load three.js -->
-  <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.161.0/examples/jsm/controls/OrbitControls.js';
-    import { STLLoader } from 'https://unpkg.com/three@0.161.0/examples/jsm/loaders/STLLoader.js';
-    window.THREE = THREE;
-    window.THREE.OrbitControls = OrbitControls;
-    window.THREE.STLLoader = STLLoader;
-  </script>
-
-  <!-- Your app logic -->
-  <script src="script.js" defer></script>
+  <!-- App script (ES module) -->
+  <script type="module" src="script.js"></script>
 </body>
 </html>
