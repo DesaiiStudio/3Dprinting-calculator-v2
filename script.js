@@ -14,8 +14,11 @@ const MATERIALS = {
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
 // Estimated volumetric throughput (mm^3/min) by quality
-const QUALITY_SPEED = { draft: 600, standard: 420, fine: 260 };
-// Time multiplier from infill (0..1): shells + travel overhead
+const QUALITY_SPEED = {
+  draft:    320,  // ~60 mm/s @ 0.28 layer, 0.45 line, 70% efficiency
+  standard: 230,  // ~60 mm/s @ 0.20 layer, 0.45 line, 70% efficiency
+  fine:     140   // ~60 mm/s @ 0.12 layer, 0.45 line, 70% efficiency
+};
 const INFILL_TIME_MULT = (p) => 0.85 + (p/100) * 0.60;
 // Supports slow-down
 const SUPPORT_MULT = (yn) => yn === 'yes' ? 1.15 : 1.00;
