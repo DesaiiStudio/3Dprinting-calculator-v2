@@ -1,8 +1,26 @@
-// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails (fix: empty state + +10% light)
+// script.js — per-file settings, inline prices, auto-calc, drag&drop, thumbnails
+// Viewer: light gray bg; Model color: orange; Orientation selector included
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+/* ===================== ORIENTATION ===================== */
+// Choose one: 'x+90','x-90','y+90','y-90','z+90','z-90','none'
+const ORIENT = 'y+90';
+const ORIENTATIONS = {
+  'none':  [0,0,0],
+  'x+90':  [ Math.PI/2, 0, 0],
+  'x-90':  [-Math.PI/2, 0, 0],
+  'y+90':  [0, Math.PI/2, 0],
+  'y-90':  [0,-Math.PI/2, 0],
+  'z+90':  [0, 0, Math.PI/2],
+  'z-90':  [0, 0,-Math.PI/2],
+};
+function applyOrientation(obj){
+  const e = ORIENTATIONS[ORIENT] || ORIENTATIONS['none'];
+  obj.rotation.set(e[0], e[1], e[2]);
+}
 
 /* ===================== CONFIG ===================== */
 const MATERIALS = {
@@ -11,7 +29,6 @@ const MATERIALS = {
   ABS:       { rate: 3.0, baseFee: 180, density_g_cm3: 1.04 },
   'PETG-CF': { rate: 2.8, baseFee: 175, density_g_cm3: 1.30 }
 };
-
 // Speeds from your targets (line width 0.45): 150/90/60 mm/s → mm³/min
 const QUALITY_SPEED = { draft: 1134, standard: 486, fine: 194 };
 
@@ -99,7 +116,6 @@ function clearViewer() {
     mesh.material.dispose?.();
     mesh = null;
   }
-  // optional: reset camera/controls a bit
   controls?.target.set(0,0,0);
   camera?.position.set(120,120,120);
   renderer?.render(scene, camera);
@@ -169,7 +185,7 @@ async function addFiles(fileList) {
         z: g.boundingBox.max.z - g.boundingBox.min.z
       };
 
-      const thumbDataURL = await makeThumbnail(g); // uses clone internally
+      const thumbDataURL = await makeThumbnail(g); // safe clone inside
 
       const model = {
         id: idSeq++,
@@ -257,9 +273,9 @@ function addFileRow(model, geometryForPreview) {
   supSel.value = model.supports;
 
   // attach change listeners → update model + recalc
-  matSel.onchange = () => { model.material = matSel.value; recalc(); };
-  qualSel.onchange = () => { model.quality = qualSel.value; recalc(); };
-  infillIn.oninput = () => { model.infill = clamp(+infillIn.value||0,0,100); infillIn.value = String(model.infill); recalc(); };
+  matSel.onchange   = () => { model.material = matSel.value; recalc(); };
+  qualSel.onchange  = () => { model.quality  = qualSel.value; recalc(); };
+  infillIn.oninput  = () => { model.infill   = clamp(+infillIn.value||0,0,100); infillIn.value = String(model.infill); recalc(); };
   supSel.onchange   = () => { model.supports = supSel.value; recalc(); };
 
   settings.appendChild(matSel);
@@ -294,7 +310,7 @@ function addFileRow(model, geometryForPreview) {
       el.summary.innerHTML = '';
       el.grandTotal.innerHTML = '';
       clearViewer();
-      updateInfo(); // show "No models selected"
+      updateInfo(); // "No models selected."
     } else {
       updateInfo();
       recalc();
@@ -310,24 +326,14 @@ function addFileRow(model, geometryForPreview) {
   el.fileList.appendChild(row);
 }
 
-/* ===================== RENDER MESH ===================== */
-const ORIENT = 'y+90';
-const ORIENTATIONS = {
-  'x+90':[ Math.PI/2, 0, 0], 'x-90':[-Math.PI/2, 0, 0],
-  'y+90':[ 0, Math.PI/2, 0], 'y-90':[ 0,-Math.PI/2, 0],
-  'z+90':[ 0, 0, Math.PI/2], 'z-90':[ 0, 0,-Math.PI/2],
-};
-function applyOrientation(obj){
-  const e = ORIENTATIONS[ORIENT] || [0,0,0];
-  obj.rotation.set(e[0], e[1], e[2]);
-}
+/* ===================== RENDER MESH (applyOrientation) ===================== */
 function renderMesh(geo) {
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
-   mesh = new THREE.Mesh(
+  mesh = new THREE.Mesh(
     geo,
-    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 })
+    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }) // orange
   );
-  applyOrientation(mesh); // ← apply chosen orientation
+  applyOrientation(mesh); // <- rotate according to ORIENT
   scene.add(mesh);
 
   const box = new THREE.Box3().setFromObject(mesh);
@@ -340,16 +346,8 @@ function renderMesh(geo) {
   camera.lookAt(center);
 }
 
-/* ===================== THUMBNAIL (clone-safe) ===================== */
+/* ===================== THUMBNAIL (clone + applyOrientation) ===================== */
 async function makeThumbnail(geo) {
-  const geoClone = geo.clone();
-  const m = new THREE.Mesh(
-    geoClone,
-    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 })
-  );
-  applyOrientation(m); // ← keep thumb consistent
-  scn.add(m);
-  
   const w = 140, h = 100;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
@@ -357,7 +355,6 @@ async function makeThumbnail(geo) {
   const scn = new THREE.Scene();
   scn.background = new THREE.Color(0xf3f4f6);
 
-  // same +10% light vibe
   const light1 = new THREE.DirectionalLight(0xffffff, 1.1); light1.position.set(1,1,1);
   const amb = new THREE.AmbientLight(0xffffff, 0.495);
   scn.add(light1, amb);
@@ -366,6 +363,7 @@ async function makeThumbnail(geo) {
 
   const geoClone = geo.clone();
   const m = new THREE.Mesh(geoClone, new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }));
+  applyOrientation(m); // match viewport orientation
   scn.add(m);
 
   const box = new THREE.Box3().setFromObject(m);
@@ -423,7 +421,6 @@ function estimateForModel(m) {
     minutesTotal,
     materialCost, printCost,
     sub: materialCost + printCost,
-  // expose base fee for “max material baseFee” rule if needed later
     matBaseFee: mat.baseFee
   };
 }
