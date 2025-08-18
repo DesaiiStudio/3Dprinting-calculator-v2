@@ -315,8 +315,13 @@ function renderMesh(geo) {
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
   mesh = new THREE.Mesh(
     geo,
-    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 }) // orange
+    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 })
   );
+
+  // 🔄 rotate model 90° sideways
+  mesh.rotation.x = Math.PI / 2;   // 90° in radians
+  // (if you want Z axis instead, use mesh.rotation.z)
+
   scene.add(mesh);
 
   const box = new THREE.Box3().setFromObject(mesh);
