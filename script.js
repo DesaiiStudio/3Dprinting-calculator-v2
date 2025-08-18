@@ -311,17 +311,23 @@ function addFileRow(model, geometryForPreview) {
 }
 
 /* ===================== RENDER MESH ===================== */
+const ORIENT = 'y+90';
+const ORIENTATIONS = {
+  'x+90':[ Math.PI/2, 0, 0], 'x-90':[-Math.PI/2, 0, 0],
+  'y+90':[ 0, Math.PI/2, 0], 'y-90':[ 0,-Math.PI/2, 0],
+  'z+90':[ 0, 0, Math.PI/2], 'z-90':[ 0, 0,-Math.PI/2],
+};
+function applyOrientation(obj){
+  const e = ORIENTATIONS[ORIENT] || [0,0,0];
+  obj.rotation.set(e[0], e[1], e[2]);
+}
 function renderMesh(geo) {
   if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
-  mesh = new THREE.Mesh(
+   mesh = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 })
   );
-
-  // 🔄 rotate model 90° sideways
-  mesh.rotation.x = Math.PI / 2;   // 90° in radians
-  // (if you want Z axis instead, use mesh.rotation.z)
-
+  applyOrientation(mesh); // ← apply chosen orientation
   scene.add(mesh);
 
   const box = new THREE.Box3().setFromObject(mesh);
@@ -336,6 +342,14 @@ function renderMesh(geo) {
 
 /* ===================== THUMBNAIL (clone-safe) ===================== */
 async function makeThumbnail(geo) {
+  const geoClone = geo.clone();
+  const m = new THREE.Mesh(
+    geoClone,
+    new THREE.MeshStandardMaterial({ color: 0xff7a00, metalness: 0.05, roughness: 0.85 })
+  );
+  applyOrientation(m); // ← keep thumb consistent
+  scn.add(m);
+  
   const w = 140, h = 100;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
