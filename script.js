@@ -7,7 +7,7 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 /* ===================== ORIENTATION ===================== */
 // Choose one: 'x+90','x-90','y+90','y-90','z+90','z-90','none'
-const ORIENT = 'y+90';
+let ORIENT = localStorage.getItem('ORIENT') || 'y+90';
 const ORIENTATIONS = {
   'none':  [0,0,0],
   'x+90':  [ Math.PI/2, 0, 0],
@@ -20,6 +20,35 @@ const ORIENTATIONS = {
 function applyOrientation(obj){
   const e = ORIENTATIONS[ORIENT] || ORIENTATIONS['none'];
   obj.rotation.set(e[0], e[1], e[2]);
+}
+
+// === Small floating Orientation selector UI (persists in localStorage) ===
+function createOrientationUI(){
+  const box = document.createElement('div');
+  Object.assign(box.style, {
+    position: 'fixed', top: '12px', right: '12px', zIndex: '9999',
+    background: '#fff', border: '1px solid #e5e7eb', borderRadius: '10px',
+    padding: '8px 10px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontSize: '12px'
+  });
+  const label = document.createElement('label');
+  label.textContent = 'Orientation: ';
+  const sel = document.createElement('select');
+  ['none','x+90','x-90','y+90','y-90','z+90','z-90'].forEach(k=>{
+    const o = document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o);
+  });
+  sel.value = ORIENT;
+  sel.onchange = ()=>{
+    ORIENT = sel.value;
+    localStorage.setItem('ORIENT', ORIENT);
+    if (mesh){
+      mesh.rotation.set(0,0,0);
+      applyOrientation(mesh);
+      renderer?.render(scene, camera);
+    }
+  };
+  label.appendChild(sel);
+  box.appendChild(label);
+  document.body.appendChild(box);
 }
 
 /* ===================== CONFIG ===================== */
@@ -92,6 +121,8 @@ function initViewer() {
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
 
+  createOrientationUI();
+  
   animate();
 }
 function sizeViewer() {
