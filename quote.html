@@ -1,105 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Desaii • 3D printing quote</title>
-  <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="style.css" />
+/* ===== Design tokens ===== */
+:root{
+  --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
+  --bg:#f8fafc; --bg2:#f3f4f6; --brand:#111; --accent:#111;
+}
+*{box-sizing:border-box}
+.q-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#fff}
 
-  <!-- Import map for three.js modules -->
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
-    }
-  }
-  </script>
-</head>
-<body class="q-body">
-  <!-- Header -->
-  <header class="q-header">
-    <div class="q-brand">
-      <div class="q-logo">Logo</div>
-      <div class="q-name">Desaii</div>
-    </div>
+/* ===== Header ===== */
+.q-header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;padding:14px 28px;border-bottom:1px solid var(--line)}
+.q-brand{display:flex;align-items:center;gap:16px}
+.q-logo{width:56px;height:56px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--muted);background:#fff}
+.q-name{font-size:26px;font-weight:800}
+.q-lang{display:flex;gap:12px;justify-content:center}
+.q-lang-link{color:var(--brand);text-decoration:none;font-size:14px}
+.q-lang-link.active{font-weight:700;text-decoration:underline}
+.q-nav{display:flex;gap:24px;justify-content:flex-end}
+.q-nav-link{color:var(--brand);text-decoration:none;padding:6px 8px;border-radius:8px}
+.q-nav-link.active{font-weight:600;text-decoration:underline}
 
-    <div class="q-lang">
-      <a class="q-lang-link">TH</a>
-      <a class="q-lang-link active">ENG</a>
-    </div>
+/* ===== Main layout ===== */
+.q-main{display:grid;grid-template-columns:minmax(640px,1fr) 520px;gap:20px;padding:18px 24px;align-items:start}
+.q-left{min-width:0}
+.q-right{display:grid;gap:18px}
 
-    <nav class="q-nav">
-      <a href="index.html" class="q-nav-link">Home</a>
-      <a href="products.html" class="q-nav-link">Product</a>
-      <a href="quote.html" class="q-nav-link active">3d printing quote</a>
-    </nav>
-  </header>
+/* ===== Cards ===== */
+.q-panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+.q-panel-title{font-weight:700;margin-bottom:10px}
 
-  <!-- Two-column layout -->
-  <main class="q-main">
-    <!-- LEFT: Viewer + Drop -->
-    <section class="q-left">
-      <div class="q-panel">
-        <div class="q-panel-title warn">3D Model view port</div>
+/* ===== Viewer + Drop zone ===== */
+.q-viewport{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--bg2);overflow:hidden}
+#viewer{width:100%;height:520px;display:block}
 
-        <div class="q-viewport">
-          <canvas id="viewer"></canvas>
+/* Dropzone centered over viewer */
+.q-dropzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+.q-drop-inner{border:2px dashed #cbd5e1;border-radius:12px;width:min(560px,85%);height:240px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.q-cloud{font-size:26px;opacity:.8}
+.q-drop-title{font-weight:600;color:#334155}
+.q-drop-or{color:var(--muted);font-size:12px}
 
-          <!-- Drop zone -->
-          <div id="dropZone" class="q-dropzone">
-            <div class="q-drop-inner">
-              <div class="q-cloud">☁️</div>
-              <div class="q-drop-title">Drag&Drop files here</div>
-              <div class="q-drop-or">or</div>
-              <label for="stlFile" class="q-btn q-btn-hollow">Browse Files</label>
-              <input id="stlFile" type="file" accept=".stl" multiple hidden />
-            </div>
-          </div>
-        </div>
+/* Buttons */
+.q-btn{background:var(--accent);color:#fff;border:1px solid var(--accent);padding:10px 14px;border-radius:10px;cursor:pointer}
+.q-btn[disabled]{opacity:.45;cursor:not-allowed}
+.q-btn-hollow{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 
-        <p id="fileInfo" class="q-help warn small">
-          After the user drag and drop / browsed file, switch drag and drop to view port
-        </p>
-      </div>
-    </section>
+/* hide all helper/warning copy (red text from mock) */
+.warn,.small,#fileInfo{display:none}
 
-    <!-- RIGHT: List + Quotation -->
-    <aside class="q-right">
-      <div class="q-panel q-list-panel">
-        <div id="fileListWrap" class="q-list" style="display:none;">
-          <div class="q-list-head">
-            <div>#</div><div>Picture</div><div>Setting</div><div>qty</div><div>price</div><div></div>
-          </div>
-          <div id="fileList" class="q-list-body"></div>
-        </div>
+/* ===== Right column: list ===== */
+.q-list-panel{height:520px;overflow:hidden;display:flex;flex-direction:column}
+.q-list{display:flex;flex-direction:column;gap:8px;height:100%}
+.q-list-head{font-size:12px;color:#6b7280;display:grid;grid-template-columns:40px 80px 1fr 70px 90px 90px;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px dashed var(--line)}
+.q-list-body{overflow:auto;padding:6px 0;display:flex;flex-direction:column;gap:10px;counter-reset:rownum;scrollbar-gutter:stable}
+.file-row{display:grid;grid-template-columns:40px 80px 1fr 70px 90px 90px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px;background:#fff}
+.file-row::before{counter-increment:rownum;content:counter(rownum);font-size:12px;color:#6b7280;text-align:center}
+.file-row img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--bg2)}
+.file-row .mini{font-size:12px;color:#6b7280}
+.file-row .number,.file-row select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.short{max-width:78px}
+.price-chip{font-weight:700}
+.file-row button{padding:8px 10px;border:1px solid #ef4444;background:#fff;color:#ef4444;border-radius:8px;cursor:pointer}
+.file-row button:hover{filter:brightness(0.96)}
+.q-list-empty{color:#9aa3af;font-size:14px;text-align:center;padding:20px}
 
-        <div id="fileListEmpty" class="q-list-empty">
-          Upload STL files to see them here
-        </div>
-      </div>
+/* ===== Quotation ===== */
+.q-summary{list-style:none;padding:0;margin:8px 0 10px}
+.q-summary li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.q-total{padding:8px 0 2px;font-weight:900;font-size:26px}
 
-      <div class="q-panel">
-        <div class="q-panel-title">Quotation</div>
-        <ul id="summaryList" class="q-summary"></ul>
-        <div id="grandTotal" class="q-total"></div>
-        <button id="downloadQuote" class="q-btn" disabled>Download quote (.json)</button>
-      </div>
-    </aside>
-  </main>
-
-  <!-- JS app -->
-  <script type="module" src="script.js"></script>
-
-  <!-- Fallback: clicking the styled label triggers hidden file input -->
-  <script>
-    document.addEventListener('click', e => {
-      if (e.target.closest('.q-btn-hollow')) {
-        e.preventDefault();
-        document.getElementById('stlFile')?.click();
-      }
-    });
-  </script>
-</body>
-</html>
+/* ===== Responsive ===== */
+@media (max-width:1100px){
+  .q-main{grid-template-columns:1fr}
+  .q-list-panel{height:auto}
+  #viewer{height:460px}
+}
