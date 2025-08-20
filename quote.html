@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Instant Quote • 3D Printing</title>
+  <title>Desaii • 3D printing quote</title>
   <link rel="icon" href="data:," />
-  <!-- Optional site stylesheet -->
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Import map so addons can import 'three' by name -->
+  <!-- Import map for three.js -->
   <script type="importmap">
   {
     "imports": {
@@ -17,81 +16,93 @@
     }
   }
   </script>
-
-  <!-- Minimal inline styles so page looks OK without style.css -->
-  <style>
-    :root { color-scheme: light; }
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;margin:24px;color:#111}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-    nav a{margin-right:12px;color:#111;text-decoration:none}
-    nav a.active{font-weight:600;text-decoration:underline}
-    .container{max-width:1100px;margin:0 auto;display:grid;gap:20px}
-    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;background:#fff}
-    .viewer-wrap{border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#f3f4f6;margin-top:10px}
-    #viewer{width:100%;height:360px;display:block}
-    .muted{color:#555}
-    .btn{padding:10px 14px;border:1px solid #111;background:#111;color:#fff;border-radius:8px;cursor:pointer}
-    .btn[disabled]{opacity:.45;cursor:not-allowed}
-    #dropZone{ text-align:center;padding:18px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:12px }
-    .grid-head{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;font-size:12px;color:#6b7280;padding:2px 0}
-    .file-row{display:grid;grid-template-columns:60px 1.4fr 1.6fr 100px 120px 100px;gap:10px;align-items:center;border-bottom:1px dashed #e5e7eb;padding:8px 0}
-    .mini{font-size:12px;color:#6b7280}
-    .price-chip{font-weight:700}
-    .pill{display:inline-block;padding:6px 10px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;background:#fff;cursor:pointer}
-    .select,.number,.short{width:100%}
-    .short{max-width:90px}
-    ul.break{list-style:none;padding:0;margin:0}
-    ul.break li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
-    footer{margin-top:24px;color:#666}
-  </style>
 </head>
-<body>
-  <header>
-    <h1>Instant Quote</h1>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="products.html">Products</a>
-      <a class="active" href="quote.html">Get a Quote</a>
+<body class="q-body">
+
+  <!-- Header -->
+  <header class="q-header">
+    <div class="q-brand">
+      <div class="q-logo">Logo</div>
+      <div class="q-name">Desaii</div>
+    </div>
+    <div class="q-lang">
+      <a href="#" class="q-lang-link">TH</a>
+      <a href="#" class="q-lang-link active">ENG</a>
+    </div>
+    <nav class="q-nav">
+      <a href="index.html" class="q-nav-link">Home</a>
+      <a href="products.html" class="q-nav-link">Product</a>
+      <a href="quote.html" class="q-nav-link active">3d printing quote</a>
     </nav>
   </header>
 
-  <main class="container">
-    <!-- 1) Upload & Viewer -->
-    <section class="card">
-      <h2>1) Upload your STL files</h2>
-      <input id="stlFile" type="file" accept=".stl" multiple />
-      <p class="muted">Drag & drop supported. Units assumed <b>mm</b>.</p>
-      <div id="dropZone">Drag & drop .stl files here</div>
-      <div id="fileInfo" class="muted" style="margin-top:8px;"></div>
-      <div class="viewer-wrap"><canvas id="viewer"></canvas></div>
-    </section>
+  <!-- Main two-column layout -->
+  <main class="q-main">
+    <!-- Left column: Viewer + Drop zone -->
+    <section class="q-left">
+      <div class="q-panel">
+        <div class="q-panel-title warn">3D Model view port</div>
 
-    <!-- 2) Per-file settings & inline prices -->
-    <section class="card" id="fileListWrap" style="display:none;">
-      <h2>2) Models & settings</h2>
-      <div class="grid-head">
-        <div>Preview</div>
-        <div>Model</div>
-        <div>Settings</div>
-        <div>Qty</div>
-        <div>Price (THB)</div>
-        <div></div>
+        <div class="q-viewport">
+          <canvas id="viewer"></canvas>
+          <!-- Drop zone sits on top until user drops files -->
+          <div id="dropZone" class="q-dropzone">
+            <div class="q-drop-inner">
+              <div class="q-cloud">☁️</div>
+              <div class="q-drop-title">Drag&Drop files here</div>
+              <div class="q-drop-or">or</div>
+
+              <label for="stlFile" class="q-btn q-btn-hollow">Browse Files</label>
+              <input id="stlFile" type="file" accept=".stl" multiple hidden />
+            </div>
+          </div>
+        </div>
+
+        <p id="fileInfo" class="q-help warn small">
+          After the user drag and drop / browsed file, switch drag and drop to view port
+        </p>
       </div>
-      <div id="fileList"></div>
     </section>
 
-    <!-- 3) Totals -->
-    <section class="card">
-      <h2>3) Price breakdown</h2>
-      <ul id="summaryList" class="break"></ul>
-      <div id="grandTotal" class="total"></div>
-      <button id="downloadQuote" class="btn" disabled>Download quote (.json)</button>
-    </section>
+    <!-- Right column: List + Quotation -->
+    <aside class="q-right">
+      <!-- Models list -->
+      <div class="q-panel q-list-panel">
+        <div class="q-list" id="fileListWrap" style="display:none;">
+          <!-- header row -->
+          <div class="q-list-head">
+            <div>#</div>
+            <div>Picture</div>
+            <div>Setting</div>
+            <div>qty</div>
+            <div>price</div>
+            <div></div>
+          </div>
+          <!-- rows are injected here -->
+          <div id="fileList" class="q-list-body"></div>
+        </div>
+
+        <!-- Empty list placeholder (shown when no files) -->
+        <div id="fileListEmpty" class="q-list-empty">
+          Upload STL files to see them here
+        </div>
+      </div>
+
+      <!-- Quotation -->
+      <div class="q-panel">
+        <div class="q-panel-title">Quotation</div>
+
+        <ul id="summaryList" class="q-summary"></ul>
+        <div id="grandTotal" class="q-total"></div>
+
+        <div class="q-actions">
+          <button id="downloadQuote" class="q-btn" disabled>Download quote (.json)</button>
+        </div>
+      </div>
+    </aside>
   </main>
 
-  <footer>© 2025 Your 3D Printing Service</footer>
-
-  <!-- App script (ES module) -->
+  <!-- App script -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
