@@ -1,32 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D Printing Service</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Desaii • Home</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="site-header">
-    <h1>My 3D Printing Service</h1>
-    <nav>
-      <a class="active" href="index.html">Home</a>
-      <a href="products.html">Products</a>
-      <a href="quote.html">Get a Quote</a>
+<body class="q-body">
+  <header class="q-header">
+    <div class="q-brand">
+      <div class="q-logo">Logo</div>
+      <div class="q-name">Desaii</div>
+    </div>
+    <div class="q-lang">
+      <a class="q-lang-link">TH</a>
+      <a class="q-lang-link active">ENG</a>
+    </div>
+    <nav class="q-nav">
+      <a class="q-nav-link active" href="index.html">Home</a>
+      <a class="q-nav-link" href="products.html">Product</a>
+      <a class="q-nav-link" href="quote.html">3d printing quote</a>
     </nav>
   </header>
 
-  <main class="container">
-    <section class="card">
-      <h2>Welcome</h2>
-      <p>Two services:</p>
-      <ul>
-        <li><a href="products.html"><strong>Products</strong></a> — ready-to-buy items</li>
-        <li><a href="quote.html"><strong>Custom print</strong></a> — upload STL, instant price</li>
-      </ul>
+  <main class="q-main" style="grid-template-columns:1fr;">
+    <section class="q-panel">
+      <h2>Welcome to Desaii</h2>
+      <p>This is a lightweight static site. Use the navigation to explore products or get an instant 3D printing quote.</p>
+      <p><a class="q-btn" href="quote.html">Go to Instant Quote</a></p>
     </section>
   </main>
-
-  <footer class="site-footer">© 2025 My 3D Printing Service</footer>
 </body>
 </html>
