@@ -1,33 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Products • 3D Printing</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Desaii • Products</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="site-header">
-    <h1>Products</h1>
-    <nav>
-      <a href="index.html">Home</a>
-      <a class="active" href="products.html">Products</a>
-      <a href="quote.html">Get a Quote</a>
+<body class="q-body">
+  <header class="q-header">
+    <div class="q-brand">
+      <div class="q-logo">Logo</div>
+      <div class="q-name">Desaii</div>
+    </div>
+    <div class="q-lang">
+      <a class="q-lang-link">TH</a>
+      <a class="q-lang-link active">ENG</a>
+    </div>
+    <nav class="q-nav">
+      <a class="q-nav-link" href="index.html">Home</a>
+      <a class="q-nav-link active" href="products.html">Product</a>
+      <a class="q-nav-link" href="quote.html">3d printing quote</a>
     </nav>
   </header>
 
-  <main class="container">
-    <section class="card">
-      <h2>Coming soon</h2>
-      <p>We’ll connect this to a backend later. For now, this is a placeholder grid.</p>
-      <div class="grid grid-3">
-        <div class="p-card"><div class="ph"></div><h4>Sample Product A</h4><p>999 THB</p></div>
-        <div class="p-card"><div class="ph"></div><h4>Sample Product B</h4><p>799 THB</p></div>
-        <div class="p-card"><div class="ph"></div><h4>Sample Product C</h4><p>599 THB</p></div>
-      </div>
+  <main class="q-main" style="grid-template-columns:1fr;">
+    <section class="q-panel">
+      <h2>Products</h2>
+      <p>List your ready‑made items here (cards, images, prices). This page is static for now.</p>
     </section>
   </main>
-
-  <footer class="site-footer">© 2025 My 3D Printing Service</footer>
 </body>
 </html>
+
