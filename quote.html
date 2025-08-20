@@ -7,7 +7,7 @@
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Import map for three.js -->
+  <!-- Import map for three.js modules -->
   <script type="importmap">
   {
     "imports": {
@@ -18,17 +18,18 @@
   </script>
 </head>
 <body class="q-body">
-
   <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
       <div class="q-name">Desaii</div>
     </div>
+
     <div class="q-lang">
-      <a href="#" class="q-lang-link">TH</a>
-      <a href="#" class="q-lang-link active">ENG</a>
+      <a class="q-lang-link">TH</a>
+      <a class="q-lang-link active">ENG</a>
     </div>
+
     <nav class="q-nav">
       <a href="index.html" class="q-nav-link">Home</a>
       <a href="products.html" class="q-nav-link">Product</a>
@@ -36,22 +37,22 @@
     </nav>
   </header>
 
-  <!-- Main two-column layout -->
+  <!-- Two-column layout -->
   <main class="q-main">
-    <!-- Left column: Viewer + Drop zone -->
+    <!-- LEFT: Viewer + Drop -->
     <section class="q-left">
       <div class="q-panel">
         <div class="q-panel-title warn">3D Model view port</div>
 
         <div class="q-viewport">
           <canvas id="viewer"></canvas>
-          <!-- Drop zone sits on top until user drops files -->
+
+          <!-- Drop zone -->
           <div id="dropZone" class="q-dropzone">
             <div class="q-drop-inner">
               <div class="q-cloud">☁️</div>
               <div class="q-drop-title">Drag&Drop files here</div>
               <div class="q-drop-or">or</div>
-
               <label for="stlFile" class="q-btn q-btn-hollow">Browse Files</label>
               <input id="stlFile" type="file" accept=".stl" multiple hidden />
             </div>
@@ -64,46 +65,41 @@
       </div>
     </section>
 
-    <!-- Right column: List + Quotation -->
+    <!-- RIGHT: List + Quotation -->
     <aside class="q-right">
-      <!-- Models list -->
       <div class="q-panel q-list-panel">
-        <div class="q-list" id="fileListWrap" style="display:none;">
-          <!-- header row -->
+        <div id="fileListWrap" class="q-list" style="display:none;">
           <div class="q-list-head">
-            <div>#</div>
-            <div>Picture</div>
-            <div>Setting</div>
-            <div>qty</div>
-            <div>price</div>
-            <div></div>
+            <div>#</div><div>Picture</div><div>Setting</div><div>qty</div><div>price</div><div></div>
           </div>
-          <!-- rows are injected here -->
           <div id="fileList" class="q-list-body"></div>
         </div>
 
-        <!-- Empty list placeholder (shown when no files) -->
         <div id="fileListEmpty" class="q-list-empty">
           Upload STL files to see them here
         </div>
       </div>
 
-      <!-- Quotation -->
       <div class="q-panel">
         <div class="q-panel-title">Quotation</div>
-
         <ul id="summaryList" class="q-summary"></ul>
         <div id="grandTotal" class="q-total"></div>
-
-        <div class="q-actions">
-          <button id="downloadQuote" class="q-btn" disabled>Download quote (.json)</button>
-        </div>
+        <button id="downloadQuote" class="q-btn" disabled>Download quote (.json)</button>
       </div>
     </aside>
   </main>
 
-  <!-- App script -->
+  <!-- JS app -->
   <script type="module" src="script.js"></script>
+
+  <!-- Fallback: clicking the styled label triggers hidden file input -->
+  <script>
+    document.addEventListener('click', e => {
+      if (e.target.closest('.q-btn-hollow')) {
+        e.preventDefault();
+        document.getElementById('stlFile')?.click();
+      }
+    });
+  </script>
 </body>
 </html>
-
