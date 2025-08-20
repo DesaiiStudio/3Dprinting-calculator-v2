@@ -6,7 +6,6 @@
   <title>Desaii • 3D printing quote</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
-
   <!-- Import map for three.js modules -->
   <script type="importmap">
   {
@@ -18,18 +17,15 @@
   </script>
 </head>
 <body class="q-body">
-  <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
       <div class="q-name">Desaii</div>
     </div>
-
     <div class="q-lang">
       <a class="q-lang-link">TH</a>
       <a class="q-lang-link active">ENG</a>
     </div>
-
     <nav class="q-nav">
       <a href="index.html" class="q-nav-link">Home</a>
       <a href="products.html" class="q-nav-link">Product</a>
@@ -37,17 +33,13 @@
     </nav>
   </header>
 
-  <!-- Two-column layout -->
   <main class="q-main">
     <!-- LEFT: Viewer + Drop -->
     <section class="q-left">
       <div class="q-panel">
-        <div class="q-panel-title warn">3D Model view port</div>
-
+        <div class="q-panel-title">3D Model view port</div>
         <div class="q-viewport">
           <canvas id="viewer"></canvas>
-
-          <!-- Drop zone -->
           <div id="dropZone" class="q-dropzone">
             <div class="q-drop-inner">
               <div class="q-cloud">☁️</div>
@@ -58,10 +50,7 @@
             </div>
           </div>
         </div>
-
-        <p id="fileInfo" class="q-help warn small">
-          After the user drag and drop / browsed file, switch drag and drop to view port
-        </p>
+        <p id="fileInfo" class="q-help"></p>
       </div>
     </section>
 
@@ -74,10 +63,7 @@
           </div>
           <div id="fileList" class="q-list-body"></div>
         </div>
-
-        <div id="fileListEmpty" class="q-list-empty">
-          Upload STL files to see them here
-        </div>
+        <div id="fileListEmpty" class="q-list-empty">Upload STL files to see them here</div>
       </div>
 
       <div class="q-panel">
@@ -89,10 +75,9 @@
     </aside>
   </main>
 
-  <!-- JS app -->
+  <!-- App JS -->
   <script type="module" src="script.js"></script>
-
-  <!-- Fallback: clicking the styled label triggers hidden file input -->
+  <!-- Fallback click for label -->
   <script>
     document.addEventListener('click', e => {
       if (e.target.closest('.q-btn-hollow')) {
@@ -103,4 +88,3 @@
   </script>
 </body>
 </html>
-
