@@ -1,4 +1,4 @@
-/* ===== Design tokens ===== */
+/* ===== Tokens ===== */
 :root{
   --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
   --bg:#f8fafc; --bg2:#f3f4f6; --brand:#111; --accent:#111;
@@ -7,19 +7,30 @@
 .q-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#fff}
 
 /* ===== Header ===== */
-.q-header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;padding:14px 28px;border-bottom:1px solid var(--line)}
+.q-header{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  gap:16px;padding:14px 28px;border-bottom:1px solid var(--line)
+}
 .q-brand{display:flex;align-items:center;gap:16px}
 .q-logo{width:56px;height:56px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--muted);background:#fff}
 .q-name{font-size:26px;font-weight:800}
-.q-lang{display:flex;gap:12px;justify-content:center}
-.q-lang-link{color:var(--brand);text-decoration:none;font-size:14px}
-.q-lang-link.active{font-weight:700;text-decoration:underline}
-.q-nav{display:flex;gap:24px;justify-content:flex-end}
+.q-nav{display:flex;gap:24px;justify-content:flex-start}
 .q-nav-link{color:var(--brand);text-decoration:none;padding:6px 8px;border-radius:8px}
 .q-nav-link.active{font-weight:600;text-decoration:underline}
 
-/* ===== Main layout ===== */
-.q-main{display:grid;grid-template-columns:minmax(640px,1fr) 520px;gap:20px;padding:18px 24px;align-items:start}
+/* language at top-right */
+.q-lang{display:flex;gap:8px;justify-content:flex-end}
+.q-lang .lang-switch{
+  border:1px solid var(--line); background:#fff; padding:6px 10px; border-radius:8px; cursor:pointer;
+}
+.q-lang .lang-switch.active{font-weight:700;text-decoration:underline}
+
+/* ===== Main layout: ~60/40 split ===== */
+.q-main{
+  display:grid;
+  grid-template-columns:minmax(560px, 60%) minmax(360px, 40%);
+  gap:20px; padding:18px 24px; align-items:start;
+}
 .q-left{min-width:0}
 .q-right{display:grid;gap:18px}
 
@@ -36,17 +47,29 @@
 .q-drop-title{font-weight:600;color:#334155}
 .q-drop-or{color:var(--muted);font-size:12px}
 
+/* Buttons */
 .q-btn{background:var(--accent);color:#fff;border:1px solid var(--accent);padding:10px 14px;border-radius:10px;cursor:pointer}
 .q-btn[disabled]{opacity:.45;cursor:not-allowed}
 .q-btn-hollow{background:#fff;color:var(--accent);border:1px solid var(--accent)}
-.q-help{display:none} /* hide helper text */
 
-/* ===== Right column: list ===== */
+/* ===== Right column: list (vertical scroll only) ===== */
 .q-list-panel{height:520px;overflow:hidden;display:flex;flex-direction:column}
 .q-list{display:flex;flex-direction:column;gap:8px;height:100%}
-.q-list-head{font-size:12px;color:#6b7280;display:grid;grid-template-columns:40px 80px 1fr 70px 90px 90px;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px dashed var(--line)}
-.q-list-body{overflow:auto;padding:6px 0;display:flex;flex-direction:column;gap:10px;counter-reset:rownum;scrollbar-gutter:stable}
-.file-row{display:grid;grid-template-columns:40px 80px 1fr 70px 90px 90px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px;background:#fff}
+.q-list-head{
+  font-size:12px;color:#6b7280;display:grid;
+  grid-template-columns:40px 80px 1fr 70px 90px 90px;
+  align-items:center;gap:10px;padding:6px 8px;border-bottom:1px dashed var(--line)
+}
+.q-list-body{
+  overflow-y:auto;           /* vertical scroll */
+  overflow-x:hidden;         /* prevent horizontal */
+  padding:6px 0;display:flex;flex-direction:column;gap:10px;counter-reset:rownum;
+  scrollbar-gutter:stable both-edges;
+}
+.file-row{
+  display:grid;grid-template-columns:40px 80px 1fr 70px 90px 90px;gap:10px;align-items:center;
+  border:1px solid var(--line);border-radius:10px;padding:8px;background:#fff
+}
 .file-row::before{counter-increment:rownum;content:counter(rownum);font-size:12px;color:#6b7280;text-align:center}
 .file-row img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--bg2)}
 .file-row .mini{font-size:12px;color:#6b7280}
@@ -56,6 +79,9 @@
 .file-row button{padding:8px 10px;border:1px solid #ef4444;background:#fff;color:#ef4444;border-radius:8px;cursor:pointer}
 .file-row button:hover{filter:brightness(0.96)}
 .q-list-empty{color:#9aa3af;font-size:14px;text-align:center;padding:20px}
+
+/* footer under list */
+.q-list-footer{padding:8px;display:flex;justify-content:flex-start}
 
 /* ===== Quotation ===== */
 .q-summary{list-style:none;padding:0;margin:8px 0 10px}
