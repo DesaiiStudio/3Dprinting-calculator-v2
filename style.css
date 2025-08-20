@@ -30,21 +30,16 @@
 /* ===== Viewer + Drop zone ===== */
 .q-viewport{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--bg2);overflow:hidden}
 #viewer{width:100%;height:520px;display:block}
-
-/* Dropzone centered over viewer */
 .q-dropzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:auto}
 .q-drop-inner{border:2px dashed #cbd5e1;border-radius:12px;width:min(560px,85%);height:240px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 .q-cloud{font-size:26px;opacity:.8}
 .q-drop-title{font-weight:600;color:#334155}
 .q-drop-or{color:var(--muted);font-size:12px}
 
-/* Buttons */
 .q-btn{background:var(--accent);color:#fff;border:1px solid var(--accent);padding:10px 14px;border-radius:10px;cursor:pointer}
 .q-btn[disabled]{opacity:.45;cursor:not-allowed}
 .q-btn-hollow{background:#fff;color:var(--accent);border:1px solid var(--accent)}
-
-/* hide all helper/warning copy (red text from mock) */
-.warn,.small,#fileInfo{display:none}
+.q-help{display:none} /* hide helper text */
 
 /* ===== Right column: list ===== */
 .q-list-panel{height:520px;overflow:hidden;display:flex;flex-direction:column}
