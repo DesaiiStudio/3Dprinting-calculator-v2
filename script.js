@@ -528,3 +528,31 @@ function updateInfo() {
 }
 function round(n,d){return Math.round(n*10**d)/10**d}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+
+
+// after your element lookups:
+const emptyMsg = document.getElementById('fileListEmpty');
+
+// helper to toggle right-side placeholder
+function toggleEmpty(hasFiles){
+  if (emptyMsg) emptyMsg.style.display = hasFiles ? 'none' : 'block';
+}
+
+// when you finish adding files (inside addFiles):
+if (added) {
+  el.fileListWrap.style.display = 'block';
+  document.getElementById('dropZone')?.style.setProperty('display','none'); // hide dropzone once used
+  toggleEmpty(true);
+  updateInfo();
+  recalc();
+}
+
+// when removing the last file:
+if (!models.length) {
+  el.fileListWrap.style.display = 'none';
+  toggleEmpty(false);
+  // (optional) show dropzone again:
+  document.getElementById('dropZone')?.style.removeProperty('display');
+  // ...your existing reset code...
+}
+
