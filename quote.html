@@ -21,13 +21,11 @@
       <div class="q-logo">Logo</div>
       <div class="q-name" data-i18n="brand">Desaii</div>
     </div>
-
     <nav class="q-nav">
       <a href="index.html" class="q-nav-link" data-i18n="home">Home</a>
       <a href="products.html" class="q-nav-link" data-i18n="product">Product</a>
-      <a href="quote.html" class="q-nav-link active" data-i18n="quote">3d printing quote</a>
+      <a href="quote.html" class="q-nav-link active" data-i18n="quote">3D Printing Quote</a>
     </nav>
-
     <div class="q-lang">
       <button class="lang-switch" data-lang="th">TH</button>
       <button class="lang-switch active" data-lang="en">ENG</button>
@@ -35,46 +33,47 @@
   </header>
 
   <main class="q-main">
-    <!-- LEFT -->
+    <!-- LEFT: Viewer -->
     <section class="q-left">
       <div class="q-panel">
-        <div class="q-panel-title" data-i18n="viewport">3D Model view port</div>
+        <div class="q-panel-title" data-i18n="viewport">3D Model</div>
         <div class="q-viewport">
           <canvas id="viewer"></canvas>
           <div id="dropZone" class="q-dropzone">
-            <div class="q-drop-inner">
-              <div class="q-cloud">☁️</div>
-              <div class="q-drop-title" data-i18n="draghere">Drag&Drop files here</div>
+            <div class="q-drop-inner drop--bw">
+              <div class="q-drop-title" data-i18n="draghere">Drag & drop STL</div>
               <div class="q-drop-or" data-i18n="or">or</div>
-              <label for="stlFile" class="q-btn q-btn-hollow" data-i18n="browse">Browse Files</label>
+              <label for="stlFile" class="q-btn q-btn--ghost" data-i18n="browse">Browse files</label>
               <input id="stlFile" type="file" accept=".stl" multiple hidden />
             </div>
           </div>
         </div>
-        <p id="fileInfo" class="q-help"></p>
+        <p id="fileInfo" class="q-info"></p>
       </div>
     </section>
 
-    <!-- RIGHT -->
+    <!-- RIGHT: Files + Quotation -->
     <aside class="q-right">
       <div class="q-panel q-list-panel">
         <div id="fileListWrap" class="q-list" style="display:none;">
           <div class="q-list-head">
             <div>#</div>
-            <div data-i18n="picture">Picture</div>
-            <div data-i18n="setting">Setting</div>
-            <div data-i18n="qty">qty</div>
-            <div data-i18n="price">price</div>
+            <div data-i18n="picture">Model</div>
+            <div data-i18n="setting">Details</div>
+            <div data-i18n="qty">Qty</div>
+            <div data-i18n="price">Price</div>
             <div></div>
           </div>
+
           <div id="fileList" class="q-list-body"></div>
+
           <div class="q-list-footer">
-            <button id="addMoreBtn" class="q-btn q-btn-hollow" data-i18n="addmore">+ Browse more files</button>
+            <button id="addMoreBtn" class="q-btn q-btn--ghost" data-i18n="addmore">+ Add more files</button>
           </div>
         </div>
 
-        <div id="fileListEmpty" class="q-list-empty" data-i18n="emptyList">
-          Upload STL files to see them here
+        <div id="fileListEmpty" class="q-empty" data-i18n="emptyList">
+          Drop STL files here to start.
         </div>
       </div>
 
@@ -82,8 +81,8 @@
         <div class="q-panel-title" data-i18n="quotation">Quotation</div>
         <ul id="summaryList" class="q-summary"></ul>
         <div id="grandTotal" class="q-total"></div>
-        <button id="downloadQuote" class="q-btn" disabled data-i18n="download">
-          Download quote (.json)
+        <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
+          Download JSON
         </button>
       </div>
     </aside>
@@ -92,7 +91,7 @@
   <script type="module" src="script.js"></script>
   <script>
     document.addEventListener('click', e => {
-      if (e.target.closest('.q-btn-hollow') && !e.target.closest('#addMoreBtn')) {
+      if (e.target.closest('.q-btn--ghost') && !e.target.closest('#addMoreBtn')) {
         e.preventDefault();
         document.getElementById('stlFile')?.click();
       }
