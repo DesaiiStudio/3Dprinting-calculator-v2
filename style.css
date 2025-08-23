@@ -1,114 +1,126 @@
-/* ===== tokens ===== */
+/* ===== Design tokens (B/W) ===== */
 :root{
-  --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
-  --bg:#f8fafc; --bg2:#f3f4f6; --brand:#111; --accent:#111; --danger:#ef4444;
+  --ink:#0A0A0A;        /* main text */
+  --muted:#6B7280;      /* secondary text */
+  --line:#E5E7EB;       /* borders */
+  --bg:#FFFFFF;         /* page */
+  --panel:#FFFFFF;      /* cards */
+  --shade:#F6F7F9;      /* canvas bg */
+  --black:#111111;      /* primary accent */
 }
 *{box-sizing:border-box}
-.q-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#fff}
+html,body{background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.4}
+a{color:inherit}
 
-/* ===== header ===== */
-.q-header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;padding:14px 28px;border-bottom:1px solid var(--line)}
-.q-brand{display:flex;align-items:center;gap:16px}
-.q-logo{width:56px;height:56px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--muted)}
-.q-name{font-size:26px;font-weight:800}
-.q-nav{display:flex;gap:24px}
-.q-nav-link{color:var(--brand);text-decoration:none;padding:6px 8px;border-radius:8px}
-.q-nav-link.active{font-weight:600;text-decoration:underline}
+/* ===== Header ===== */
+.q-header{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  gap:24px;padding:18px 28px;border-bottom:1px solid var(--line);background:#fff
+}
+.q-brand{display:flex;align-items:center;gap:14px}
+.q-logo{width:52px;height:52px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--muted)}
+.q-name{font-size:22px;font-weight:800;letter-spacing:.2px}
+.q-nav{display:flex;gap:22px}
+.q-nav-link{padding:6px 4px;text-decoration:none;border-bottom:2px solid transparent}
+.q-nav-link.active{border-bottom-color:var(--black);font-weight:700}
 .q-lang{display:flex;gap:8px}
-.q-lang .lang-switch{border:1px solid var(--line);background:#fff;padding:6px 10px;border-radius:8px;cursor:pointer}
-.q-lang .lang-switch.active{font-weight:700;text-decoration:underline}
+.q-lang .lang-switch{
+  border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer
+}
+.q-lang .lang-switch.active{background:#000;color:#fff;border-color:#000}
 
-/* ===== layout (60/40) ===== */
-.q-main{display:grid;grid-template-columns:minmax(560px,60%) minmax(380px,40%);gap:20px;padding:18px 24px;align-items:start}
+/* ===== Layout (60 / 40) ===== */
+.q-main{display:grid;grid-template-columns:minmax(580px,60%) minmax(380px,40%);gap:24px;padding:20px 24px}
 .q-left{min-width:0}
-.q-right{display:grid;gap:18px}
+.q-right{display:grid;gap:20px}
 
-/* ===== panels ===== */
-.q-panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
-.q-panel-title{font-weight:700;margin-bottom:10px}
+/* ===== Cards ===== */
+.q-panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.q-panel-title{font-weight:800;letter-spacing:.3px;margin-bottom:12px}
 
-/* ===== viewer ===== */
-.q-viewport{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--bg2);overflow:hidden}
-#viewer{width:100%;height:520px;display:block}
+/* ===== Viewer ===== */
+.q-viewport{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--shade);overflow:hidden}
+#viewer{width:100%;height:540px;display:block;background:#fff}
 .q-dropzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.q-drop-inner{border:2px dashed #cbd5e1;border-radius:12px;width:min(560px,85%);height:240px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
-.q-cloud{font-size:26px;opacity:.8}
-.q-drop-title{font-weight:600;color:#334155}
+.q-drop-inner{display:flex;flex-direction:column;align-items:center;gap:8px}
+.drop--bw{padding:28px 34px;border:1.5px dashed #CFCFCF;border-radius:12px;background:#fff}
+.q-drop-title{font-weight:800;letter-spacing:.2px}
 .q-drop-or{color:var(--muted);font-size:12px}
 
-/* buttons */
-.q-btn{background:var(--accent);color:#fff;border:1px solid var(--accent);padding:10px 14px;border-radius:10px;cursor:pointer}
-.q-btn[disabled]{opacity:.45;cursor:not-allowed}
-.q-btn-hollow{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+/* Buttons */
+.q-btn{border-radius:10px;padding:10px 14px;font-weight:700;letter-spacing:.2px;cursor:pointer}
+.q-btn--black{background:#000;color:#fff;border:1px solid #000}
+.q-btn--black[disabled]{opacity:.4;cursor:not-allowed}
+.q-btn--ghost{background:#fff;border:1px solid #000;color:#000}
+.q-btn--ghost:hover{background:#000;color:#fff}
 
-/* ===== right list ===== */
-.q-list-panel{height:520px;overflow:hidden;display:flex;flex-direction:column}
-.q-list{display:flex;flex-direction:column;gap:10px;height:100%}
+/* Small info */
+.q-info{margin-top:10px;color:#111;font-size:12px}
+
+/* ===== Right list (vertical only) ===== */
+.q-list-panel{height:540px;display:flex;flex-direction:column}
+.q-list{display:flex;flex-direction:column;height:100%}
 .q-list-head{
-  font-size:12px;color:#6b7280;display:grid;
-  grid-template-columns:36px 1.6fr 2.2fr 1fr 1fr 72px;
-  align-items:center;gap:10px;padding:6px 8px;border-bottom:1px dashed var(--line)
+  font-size:12px;color:var(--muted);display:grid;
+  grid-template-columns:44px 1.5fr 2.5fr 0.8fr 1fr 84px;
+  align-items:center;gap:12px;padding:6px 8px;border-bottom:1px solid var(--line)
 }
 .q-list-body{
-  overflow-y:auto;overflow-x:hidden;padding:6px 4px 6px 8px;display:flex;flex-direction:column;gap:10px;scrollbar-gutter:stable both-edges
+  overflow-y:auto;overflow-x:hidden;padding:10px 6px 8px 8px;display:flex;flex-direction:column;gap:12px
 }
-.q-list-footer{padding:4px 8px}
+.q-empty{color:var(--muted);text-align:center;padding:28px}
 
-/* row card */
+/* ===== Model row — “card” ===== */
 .file-row{
-  display:grid;
-  grid-template-columns:36px 1.6fr 2.2fr 1fr 1fr 72px; /* index | thumbnail+name | settings | qty | price | remove */
-  gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff
+  display:grid;grid-template-columns:44px 1.5fr 2.5fr 0.8fr 1fr 84px;
+  gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff
 }
-.file-row .idx{font-size:12px;color:#6b7280;text-align:center}
+.file-row .idx{font-size:12px;color:var(--muted);text-align:center}
 
-/* thumbnail + name */
-.card-media{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;min-width:0}
-.card-media img{width:64px;height:64px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:var(--bg2)}
-.file-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.file-meta{font-size:12px;color:#6b7280;margin-top:2px}
+/* Media column */
+.card-media{display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;min-width:0}
+.card-media img{width:72px;height:72px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:#fff}
+.file-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-meta{font-size:12px;color:var(--muted);margin-top:2px}
 
-/* settings grid inside a column */
-.settings{
-  display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;align-items:center
-}
-.field{display:grid;gap:4px}
-.field label{font-size:11px;color:#6b7280}
+/* Details column: stacked, with labels */
+.details{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:1200px){ .details{grid-template-columns:repeat(2,1fr);} }
+.field{display:grid;gap:6px}
+.field label{font-size:11px;color:var(--muted);letter-spacing:.2px}
 .field input[type="number"], .field select{
-  padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%
+  padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px
 }
 
-/* qty */
-.qtycol .number{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+/* Qty */
+.qtycol .number{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px}
 
-/* price */
+/* Price */
 .pricecol{display:flex;justify-content:flex-end;align-items:center}
-.price-chip{font-weight:800}
-.price-chip::after{content:" THB";font-weight:600;color:#6b7280;margin-left:2px}
+.price-chip{font-weight:900;font-size:16px}
+.price-chip::after{content:" THB";font-weight:700;color:var(--muted);margin-left:4px}
 
-/* remove */
-.file-row .danger{padding:8px 10px;border:1px solid var(--danger);color:var(--danger);background:#fff;border-radius:8px;cursor:pointer}
-.file-row .danger:hover{filter:brightness(0.96)}
+/* Remove */
+.file-row .danger{padding:10px 12px;border:1px solid var(--ink);color:var(--ink);background:#fff;border-radius:10px;cursor:pointer}
+.file-row .danger:hover{background:#000;color:#fff}
 
-/* empty */
-.q-list-empty{color:#9aa3af;font-size:14px;text-align:center;padding:20px}
-
-/* quotation */
+/* Quotation */
 .q-summary{list-style:none;padding:0;margin:8px 0 10px}
-.q-summary li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line)}
-.q-total{padding:8px 0 2px;font-weight:900;font-size:26px}
+.q-summary li{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.q-total{padding-top:8px;font-weight:900;font-size:26px}
 
-/* responsive */
+/* Hero / lede (home) */
+.hero{font-size:36px;font-weight:900;margin:0}
+.lede{font-size:16px;color:#111;margin:6px 0 16px}
+
+/* Responsive */
 @media (max-width:1100px){
   .q-main{grid-template-columns:1fr}
   .q-list-panel{height:auto}
   #viewer{height:460px}
 }
-@media (max-width:700px){
-  .file-row{
-    grid-template-columns:28px 1fr; /* stack */
-    grid-auto-rows:auto
-  }
-  .settings, .qtycol, .pricecol{grid-column:1 / -1}
+@media (max-width:720px){
+  .file-row{grid-template-columns:36px 1fr;grid-auto-rows:auto}
+  .details,.qtycol,.pricecol{grid-column:1 / -1}
   .pricecol{justify-content:flex-start}
 }
