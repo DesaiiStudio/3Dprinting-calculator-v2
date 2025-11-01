@@ -16,7 +16,6 @@
   </script>
 </head>
 <body class="q-body">
-  <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
@@ -54,7 +53,7 @@
 
     <!-- 2) Models list -->
     <section class="q-panel">
-      <div class="q-panel-title">Models</div>
+      <div class="q-panel-title" data-i18n="models">Models</div>
 
       <div id="fileListWrap" class="q-list" style="display:none;">
         <div class="q-list-head">
@@ -77,13 +76,11 @@
     </section>
 
     <!-- 3) Quotation -->
-    <section class="q-panel">
+    <section class="q-panel" data-config="thb">
       <div class="q-panel-title" data-i18n="quotation">Quotation</div>
       <ul id="summaryList" class="q-summary"></ul>
       <div id="grandTotal" class="q-total"></div>
-      <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
-        Download JSON
-      </button>
+      <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">Download JSON</button>
     </section>
   </main>
 
@@ -96,6 +93,14 @@
         document.getElementById('stlFile')?.click();
       }
     });
+    // language sync (same as other pages)
+    const getLang=()=>localStorage.getItem('lang')||'en';
+    const setLang=l=>{
+      localStorage.setItem('lang',l);
+      document.querySelectorAll('.lang-switch').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));
+    };
+    document.querySelectorAll('.lang-switch').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+    setLang(getLang());
   </script>
 </body>
 </html>
