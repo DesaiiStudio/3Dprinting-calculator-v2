@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Desaii • Home</title>
-  <link rel="icon" href="data:," />
+  <meta charset="UTF-8" />
+  <title>Desaii • 3D Printing Service</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="q-body">
+  <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
-      <div class="q-name">Desaii</div>
+      <div class="q-name" data-i18n="brand">Desaii</div>
     </div>
     <nav class="q-nav">
-      <a class="q-nav-link active" href="index.html">Home</a>
-      <a class="q-nav-link" href="products.html">Product</a>
-      <a class="q-nav-link" href="quote.html">3D Printing Quote</a>
+      <a href="index.html" class="q-nav-link active" data-i18n="home">Home</a>
+      <a href="products.html" class="q-nav-link" data-i18n="product">Product</a>
+      <a href="quote.html" class="q-nav-link" data-i18n="quote">3D Printing Quote</a>
     </nav>
     <div class="q-lang">
       <button class="lang-switch" data-lang="th">TH</button>
@@ -24,19 +24,31 @@
     </div>
   </header>
 
-  <main class="q-main" style="grid-template-columns:1fr;">
-    <section class="q-panel">
-      <h1 class="hero">Build fast, print faster.</h1>
-      <p class="lede">Upload your STL files and get a transparent quote instantly. No sign‑up. No surprises.</p>
-      <p><a class="q-btn q-btn--black" href="quote.html">Open Instant Quote</a></p>
+  <!-- Hero -->
+  <main class="q-main">
+    <section class="hero">
+      <h1 class="hero-title">Build fast, print faster.</h1>
+      <p class="hero-text">
+        Upload your STL and get a price instantly. Local-friendly, THB-based, made for small runs.
+      </p>
+      <div class="hero-actions">
+        <a class="q-btn q-btn--black" href="quote.html">Get 3D Printing Quote</a>
+        <a class="q-btn q-btn--ghost" href="products.html">View Products</a>
+      </div>
     </section>
   </main>
 
   <script>
-    // keep header language buttons consistent across pages
-    const getLang=()=>localStorage.getItem('lang')||'en';
-    const setLang=l=>{localStorage.setItem('lang',l);document.querySelectorAll('.lang-switch').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));};
-    document.querySelectorAll('.lang-switch').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+    // language sync (simple)
+    const getLang = () => localStorage.getItem('lang') || 'en';
+    const setLang = (l) => {
+      localStorage.setItem('lang', l);
+      document.querySelectorAll('.lang-switch')
+        .forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+    };
+    document.querySelectorAll('.lang-switch').forEach(b => {
+      b.addEventListener('click', () => setLang(b.dataset.lang));
+    });
     setLang(getLang());
   </script>
 </body>
