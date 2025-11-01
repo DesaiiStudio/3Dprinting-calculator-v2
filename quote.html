@@ -16,6 +16,7 @@
   </script>
 </head>
 <body class="q-body">
+  <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
@@ -32,8 +33,9 @@
     </div>
   </header>
 
+  <!-- Main (stacked) -->
   <main class="q-main q-stack">
-    <!-- Viewer -->
+    <!-- 1) Viewer -->
     <section class="q-panel">
       <div class="q-panel-title" data-i18n="viewport">3D Model</div>
       <div class="q-viewport">
@@ -50,7 +52,7 @@
       <p id="fileInfo" class="q-info"></p>
     </section>
 
-    <!-- Models list -->
+    <!-- 2) Models list -->
     <section class="q-panel">
       <div class="q-panel-title">Models</div>
 
@@ -74,7 +76,7 @@
       </div>
     </section>
 
-    <!-- Quotation -->
+    <!-- 3) Quotation -->
     <section class="q-panel">
       <div class="q-panel-title" data-i18n="quotation">Quotation</div>
       <ul id="summaryList" class="q-summary"></ul>
@@ -87,10 +89,9 @@
 
   <script type="module" src="script.js"></script>
   <script>
-    // keep file input clickable
+    // make label clickable
     document.addEventListener('click', e => {
-      const btn = e.target.closest('.q-btn--ghost');
-      if (btn && btn.getAttribute('for') !== 'stlFile' && !e.target.closest('#addMoreBtn')) {
+      if (e.target.closest('.q-btn--ghost') && !e.target.closest('#addMoreBtn')) {
         e.preventDefault();
         document.getElementById('stlFile')?.click();
       }
