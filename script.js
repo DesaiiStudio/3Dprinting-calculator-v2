@@ -1,12 +1,11 @@
 // script.js
+// ==========================
+// 0. CONFIG
+// ==========================
 import * as THREE from 'three';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-/**
- * CENTRAL CONFIG
- * All prices in THB
- */
 const CONFIG = {
   currency: 'THB',
   // density in g/cm³, price per kg in THB
@@ -16,50 +15,65 @@ const CONFIG = {
     PETG: { density: 1.27, pricePerKg: 520 }
   },
   defaultMaterial: 'PLA',
-  gramsPerHour: 25,          // for time estimate
+  gramsPerHour: 25,          // g/h, for time estimate
   machineRatePerHour: 25,    // THB/h
   electricityRatePerHour: 5, // THB/h
-  minCharge: 60,             // THB
+  minCharge: 60,             // ✅ hard minimum
   margin: 1.25               // 25% markup
 };
 
-const dom = {
-  dropZone: document.getElementById('dropZone'),
-  fileInput: document.getElementById('stlFile'),
-  fileListWrap: document.getElementById('fileListWrap'),
-  fileListEmpty: document.getElementById('fileListEmpty'),
-  fileList: document.getElementById('fileList'),
-  summaryList: document.getElementById('summaryList'),
-  grandTotal: document.getElementById('grandTotal'),
-  downloadBtn: document.getElementById('downloadQuote'),
-  addMoreBtn: document.getElementById('addMoreBtn'),
-  fileInfo: document.getElementById('fileInfo'),
-  viewerCanvas: document.getElementById('viewer')
+// ==========================
+// 1. DOM CACHE
+// ==========================
+const DOM = {
+  dropZone:       document.getElementById('dropZone'),
+  fileInput:      document.getElementById('stlFile'),
+  fileListWrap:   document.getElementById('fileListWrap'),
+  fileListEmpty:  document.getElementById('fileListEmpty'),
+  fileList:       document.getElementById('fileList'),
+  summaryList:    document.getElementById('summaryList'),
+  grandTotal:     document.getElementById('grandTotal'),
+  downloadBtn:    document.getElementById('downloadQuote'),
+  addMoreBtn:     document.getElementById('addMoreBtn'),
+  fileInfo:       document.getElementById('fileInfo'),
+  viewerCanvas:   document.getElementById('viewer')
 };
 
-const state = {
+// ==========================
+// 2. STATE
+// ==========================
+const STATE = {
   models: [],
-  counter: 1,
   three: null
 };
 
-// =========================
-// 1. THREE.JS VIEWER SETUP
-// =========================
+// ==========================
+// 3. INIT
+// ==========================
+initViewer();
+initDnD();
+initDownload();
+renderEmptyState(true);
+
+// ==========================
+// 4. VIEWER (THREE.JS)
+// ==========================
 function initViewer() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf6f7f9);
 
-  const camera = new THREE.PerspectiveCamera(45, dom.viewerCanvas.clientWidth / dom.viewerCanvas.clientHeight, 0.1, 1000);
+  const w = DOM.viewerCanvas.clientWidth;
+  const h = DOM.viewerCanvas.clientHeight;
+  const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
   camera.position.set(80, 80, 80);
 
-  const renderer = new THREE.WebGLRenderer({ canvas: dom.viewerCanvas, antialias: true });
-  renderer.setSize(dom.viewerCanvas.clientWidth, dom.viewerCanvas.clientHeight);
+  const renderer = new THREE.WebGLRenderer({ canvas: DOM.viewerCanvas, antialias: true });
+  renderer.setSize(w, h);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
 
-  // light
+  // lights
   const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   hemi.position.set(0, 200, 0);
   scene.add(hemi);
@@ -75,50 +89,49 @@ function initViewer() {
   }
   animate();
 
-  state.three = { scene, camera, renderer, controls };
+  STATE.three = { scene, camera, renderer, controls };
 }
 
 function showGeometry(geometry) {
-  if (!state.three) return;
-  const { scene, camera, controls } = state.three;
+  if (!STATE.three) return;
+  const { scene, camera, controls } = STATE.three;
 
-  // clear old mesh
-  scene.children = scene.children.filter(obj => !(obj.isMesh));
+  // remove old mesh
+  scene.children = scene.children.filter(obj => !obj.isMesh);
 
-  const material = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.1, roughness: 0.7 });
-  const mesh = new THREE.Mesh(geometry, material);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x374151,
+    metalness: 0.1,
+    roughness: 0.7
+  });
+  const mesh = new THREE.Mesh(geometry, mat);
   scene.add(mesh);
 
-  // auto center & frame
+  // center
   geometry.computeBoundingBox();
   const box = geometry.boundingBox;
   const center = new THREE.Vector3();
   box.getCenter(center);
-  mesh.position.sub(center); // move to origin
+  mesh.position.sub(center);
 
+  // frame
   const size = new THREE.Vector3();
   box.getSize(size);
   const maxDim = Math.max(size.x, size.y, size.z);
+  const dist = maxDim * 1.8;
 
-  const fitDist = maxDim * 1.8;
-  camera.position.set(fitDist, fitDist, fitDist);
-  camera.lookAt(new THREE.Vector3(0, 0, 0));
+  camera.position.set(dist, dist, dist);
+  camera.lookAt(0, 0, 0);
+
   controls.target.set(0, 0, 0);
   controls.update();
 }
 
-// =========================
-// 2. STL → VOLUME → GRAMS
-// =========================
-
-/**
- * IMPORTANT:
- * - STLLoader returns geometry in MILLIMETERS.
- * - Our volume calc returns in mm³.
- * - Density is in g/cm³.
- * - So we MUST:  cm³ = mm³ / 1000
- */
+// ==========================
+// 5. PRICING (NO LOGIC CHANGE)
+// ==========================
 function computeVolumeMm3(geometry) {
+  // STL → mm → mm³
   const pos = geometry.attributes.position;
   let volume = 0;
   const v1 = new THREE.Vector3();
@@ -126,20 +139,16 @@ function computeVolumeMm3(geometry) {
   const v3 = new THREE.Vector3();
 
   for (let i = 0; i < pos.count; i += 3) {
-    v1.fromBufferAttribute(pos, i + 0);
+    v1.fromBufferAttribute(pos, i);
     v2.fromBufferAttribute(pos, i + 1);
     v3.fromBufferAttribute(pos, i + 2);
-
-    // signed volume of tetrahedron (0, v1, v2, v3)
-    volume += v1.dot(v2.cross(v3)) / 6.0;
+    volume += v1.dot(v2.cross(v3)) / 6;
   }
-
   return Math.abs(volume); // mm³
 }
 
 function calcUsageFactor(infillPercent) {
-  // simple model:
-  // 25% base for walls/top/bottom + scaled infill
+  // same as your original
   const base = 0.25;
   const infillEff = 0.75;
   return base + (infillPercent / 100) * infillEff;
@@ -147,24 +156,28 @@ function calcUsageFactor(infillPercent) {
 
 function calculatePricing({ volumeMm3, materialKey, infillPercent }) {
   const mat = CONFIG.materials[materialKey] || CONFIG.materials[CONFIG.defaultMaterial];
-  const density = mat.density; // g/cm³
 
-  const volumeCm3 = volumeMm3 / 1000;         // 🔐 this is the line you forgot
-  const rawWeightG = volumeCm3 * density;     // fully solid
+  // 1) mm³ → cm³
+  const volumeCm3 = volumeMm3 / 1000;
+  // 2) solid grams
+  const rawWeightG = volumeCm3 * mat.density;
+  // 3) apply walls + infill factor
   const usageFactor = calcUsageFactor(infillPercent);
   const printWeightG = rawWeightG * usageFactor;
 
-  // material cost
+  // material
   const materialCost = (printWeightG / 1000) * mat.pricePerKg;
 
-  // time & machine
+  // time-based
   const printTimeHr = printWeightG / CONFIG.gramsPerHour;
   const machineCost = printTimeHr * CONFIG.machineRatePerHour;
   const elecCost = printTimeHr * CONFIG.electricityRatePerHour;
 
+  // subtotal + margin (NO CHANGE)
   let subtotal = materialCost + machineCost + elecCost;
   subtotal = subtotal * CONFIG.margin;
 
+  // HARD MINIMUM (this is the small-fee behavior you currently have)
   const unitPrice = Math.max(CONFIG.minCharge, subtotal);
 
   return {
@@ -179,12 +192,35 @@ function calculatePricing({ volumeMm3, materialKey, infillPercent }) {
   };
 }
 
-// =========================
-// 3. DOM HELPERS
-// =========================
-function renderEmptyState(showEmpty) {
-  dom.fileListEmpty.style.display = showEmpty ? 'block' : 'none';
-  dom.fileListWrap.style.display = showEmpty ? 'none' : 'block';
+// ==========================
+// 6. UI HELPERS
+// ==========================
+function renderEmptyState(show) {
+  DOM.fileListEmpty.style.display = show ? 'block' : 'none';
+  DOM.fileListWrap.style.display = show ? 'none' : 'block';
+}
+
+function formatPrice(num) {
+  return `${num.toFixed(0)} ${CONFIG.currency}`;
+}
+
+function renderSummary() {
+  DOM.summaryList.innerHTML = '';
+  let total = 0;
+
+  STATE.models.forEach(m => {
+    total += m.lineTotal;
+    const li = document.createElement('li');
+    li.className = 'q-summary-item';
+    li.textContent = `${m.qty}× ${m.name} — ${formatPrice(m.lineTotal)}`;
+    DOM.summaryList.appendChild(li);
+  });
+
+  DOM.grandTotal.textContent = STATE.models.length
+    ? `Total: ${formatPrice(total)}`
+    : 'No items';
+
+  DOM.downloadBtn.disabled = STATE.models.length === 0;
 }
 
 function createModelRow(model) {
@@ -192,7 +228,6 @@ function createModelRow(model) {
   row.className = 'q-list-row';
   row.dataset.id = model.id;
 
-  // material options
   const materialOptions = Object.keys(CONFIG.materials)
     .map(k => `<option value="${k}" ${k === model.material ? 'selected' : ''}>${k}</option>`)
     .join('');
@@ -226,25 +261,16 @@ function createModelRow(model) {
   `;
 
   // events
-  const selMat = row.querySelector('.js-mat');
-  const inpInfill = row.querySelector('.js-infill');
-  const inpQty = row.querySelector('.js-qty');
-  const btnRemove = row.querySelector('.js-remove');
-
-  selMat.addEventListener('change', () => updateModelFromRow(model.id, row));
-  inpInfill.addEventListener('input', () => updateModelFromRow(model.id, row));
-  inpQty.addEventListener('input', () => updateModelFromRow(model.id, row));
-  btnRemove.addEventListener('click', () => removeModel(model.id));
+  row.querySelector('.js-mat').addEventListener('change', () => updateModelFromRow(model.id, row));
+  row.querySelector('.js-infill').addEventListener('input', () => updateModelFromRow(model.id, row));
+  row.querySelector('.js-qty').addEventListener('input', () => updateModelFromRow(model.id, row));
+  row.querySelector('.js-remove').addEventListener('click', () => removeModel(model.id));
 
   return row;
 }
 
-function formatPrice(num) {
-  return `${num.toFixed(0)} ${CONFIG.currency}`;
-}
-
 function updateModelFromRow(id, row) {
-  const model = state.models.find(m => m.id === id);
+  const model = STATE.models.find(m => m.id === id);
   if (!model) return;
 
   const mat = row.querySelector('.js-mat').value;
@@ -257,13 +283,13 @@ function updateModelFromRow(id, row) {
     infillPercent: infill
   });
 
-  model.material = mat;
-  model.infill = infill;
-  model.qty = qty;
-  model.volumeCm3 = pricing.volumeCm3;
+  model.material     = mat;
+  model.infill       = infill;
+  model.qty          = qty;
+  model.volumeCm3    = pricing.volumeCm3;
   model.printWeightG = pricing.printWeightG;
-  model.unitPrice = pricing.unitPrice;
-  model.lineTotal = pricing.unitPrice * qty;
+  model.unitPrice    = pricing.unitPrice;
+  model.lineTotal    = pricing.unitPrice * qty;
 
   row.querySelector('.q-file-meta').textContent =
     `${model.volumeCm3.toFixed(2)} cm³ • ${model.printWeightG.toFixed(1)} g`;
@@ -273,51 +299,34 @@ function updateModelFromRow(id, row) {
 }
 
 function removeModel(id) {
-  state.models = state.models.filter(m => m.id !== id);
-  const row = dom.fileList.querySelector(`.q-list-row[data-id="${id}"]`);
+  STATE.models = STATE.models.filter(m => m.id !== id);
+  const row = DOM.fileList.querySelector(`.q-list-row[data-id="${id}"]`);
   if (row) row.remove();
+
   // reindex
-  state.models.forEach((m, i) => {
+  STATE.models.forEach((m, i) => {
     m.index = i + 1;
-    const rowEl = dom.fileList.querySelector(`.q-list-row[data-id="${m.id}"] > div:first-child`);
-    if (rowEl) rowEl.textContent = m.index;
+    const cell = DOM.fileList.querySelector(`.q-list-row[data-id="${m.id}"] > div:first-child`);
+    if (cell) cell.textContent = m.index;
   });
+
   renderSummary();
-  if (state.models.length === 0) renderEmptyState(true);
+  if (STATE.models.length === 0) renderEmptyState(true);
 }
 
-function renderSummary() {
-  dom.summaryList.innerHTML = '';
-  let total = 0;
-  state.models.forEach(m => {
-    total += m.lineTotal;
-    const li = document.createElement('li');
-    li.className = 'q-summary-item';
-    li.textContent = `${m.qty}× ${m.name} — ${formatPrice(m.lineTotal)}`;
-    dom.summaryList.appendChild(li);
-  });
-
-  dom.grandTotal.textContent = state.models.length
-    ? `Total: ${formatPrice(total)}`
-    : 'No items';
-
-  dom.downloadBtn.disabled = state.models.length === 0;
-}
-
-// =========================
-// 4. FILE HANDLING
-// =========================
+// ==========================
+// 7. FILE HANDLING
+// ==========================
 function handleFiles(fileList) {
   const loader = new STLLoader();
+
   Array.from(fileList).forEach(file => {
     const reader = new FileReader();
     reader.onload = e => {
-      const arrayBuffer = e.target.result;
-      const geometry = loader.parse(arrayBuffer);
+      const geometry = loader.parse(e.target.result);
       geometry.computeVertexNormals();
 
       const volumeMm3 = computeVolumeMm3(geometry);
-
       const pricing = calculatePricing({
         volumeMm3,
         materialKey: CONFIG.defaultMaterial,
@@ -326,7 +335,7 @@ function handleFiles(fileList) {
 
       const model = {
         id: crypto.randomUUID ? crypto.randomUUID() : `m-${Date.now()}-${Math.random()}`,
-        index: state.models.length + 1,
+        index: STATE.models.length + 1,
         name: file.name,
         volumeMm3,
         volumeCm3: pricing.volumeCm3,
@@ -336,52 +345,55 @@ function handleFiles(fileList) {
         layerHeight: 0.2,
         qty: 1,
         unitPrice: pricing.unitPrice,
-        lineTotal: pricing.unitPrice * 1
+        lineTotal: pricing.unitPrice
       };
 
-      state.models.push(model);
-      const row = createModelRow(model);
-      dom.fileList.appendChild(row);
+      STATE.models.push(model);
+      DOM.fileList.appendChild(createModelRow(model));
       renderEmptyState(false);
       renderSummary();
       showGeometry(geometry);
 
-      dom.fileInfo.textContent = `Loaded ${file.name} • ${model.volumeCm3.toFixed(2)} cm³ • ${model.printWeightG.toFixed(1)} g`;
+      DOM.fileInfo.textContent =
+        `Loaded ${file.name} • ${model.volumeCm3.toFixed(2)} cm³ • ${model.printWeightG.toFixed(1)} g`;
     };
     reader.readAsArrayBuffer(file);
   });
 }
 
-function setupDnD() {
-  dom.dropZone.addEventListener('dragover', e => {
+function initDnD() {
+  // drop
+  DOM.dropZone.addEventListener('dragover', e => {
     e.preventDefault();
-    dom.dropZone.classList.add('is-dragover');
+    DOM.dropZone.classList.add('is-dragover');
   });
-  dom.dropZone.addEventListener('dragleave', e => {
-    dom.dropZone.classList.remove('is-dragover');
+  DOM.dropZone.addEventListener('dragleave', () => {
+    DOM.dropZone.classList.remove('is-dragover');
   });
-  dom.dropZone.addEventListener('drop', e => {
+  DOM.dropZone.addEventListener('drop', e => {
     e.preventDefault();
-    dom.dropZone.classList.remove('is-dragover');
-    if (e.dataTransfer.files.length) {
-      handleFiles(e.dataTransfer.files);
-    }
+    DOM.dropZone.classList.remove('is-dragover');
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   });
-  dom.fileInput.addEventListener('change', e => {
+
+  // input
+  DOM.fileInput.addEventListener('change', e => {
     if (e.target.files.length) handleFiles(e.target.files);
   });
-  dom.addMoreBtn.addEventListener('click', () => dom.fileInput.click());
+
+  // add more
+  DOM.addMoreBtn.addEventListener('click', () => DOM.fileInput.click());
 }
 
-// =========================
-// 5. DOWNLOAD JSON
-// =========================
-function setupDownload() {
-  dom.downloadBtn.addEventListener('click', () => {
+// ==========================
+// 8. DOWNLOAD
+// ==========================
+function initDownload() {
+  DOM.downloadBtn.addEventListener('click', () => {
     const payload = {
       date: new Date().toISOString().slice(0, 10),
       currency: CONFIG.currency,
-      items: state.models.map(m => ({
+      items: STATE.models.map(m => ({
         name: m.name,
         volume_mm3: m.volumeMm3,
         volume_cm3: m.volumeCm3,
@@ -392,8 +404,9 @@ function setupDownload() {
         unit_price: m.unitPrice,
         line_total: m.lineTotal
       })),
-      subtotal: state.models.reduce((s, m) => s + m.lineTotal, 0)
+      subtotal: STATE.models.reduce((sum, m) => sum + m.lineTotal, 0)
     };
+
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -403,11 +416,3 @@ function setupDownload() {
     URL.revokeObjectURL(url);
   });
 }
-
-// =========================
-// INIT
-// =========================
-initViewer();
-setupDnD();
-setupDownload();
-renderEmptyState(true);
