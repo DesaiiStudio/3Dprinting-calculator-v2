@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Desaii • 3D Printing Quote</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Desaii • 3D printing quote</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
   <script type="importmap">
   {
@@ -15,7 +16,6 @@
   </script>
 </head>
 <body class="q-body">
-  <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
@@ -32,9 +32,8 @@
     </div>
   </header>
 
-  <!-- Main (3 panels) -->
   <main class="q-main q-stack">
-    <!-- 1. Viewer / Dropzone -->
+    <!-- Viewer -->
     <section class="q-panel">
       <div class="q-panel-title" data-i18n="viewport">3D Model</div>
       <div class="q-viewport">
@@ -51,9 +50,9 @@
       <p id="fileInfo" class="q-info"></p>
     </section>
 
-    <!-- 2. Model list -->
+    <!-- Models list -->
     <section class="q-panel">
-      <div class="q-panel-title" data-i18n="models">Models</div>
+      <div class="q-panel-title">Models</div>
 
       <div id="fileListWrap" class="q-list" style="display:none;">
         <div class="q-list-head">
@@ -75,41 +74,27 @@
       </div>
     </section>
 
-    <!-- 3. Quotation -->
-    <section class="q-panel" data-config="thb">
+    <!-- Quotation -->
+    <section class="q-panel">
       <div class="q-panel-title" data-i18n="quotation">Quotation</div>
-      <!-- your requested text -->
-      <div class="q-panel-subtitle">Small fee order</div>
-
       <ul id="summaryList" class="q-summary"></ul>
-      <div id="grandTotal" class="q-total">No items</div>
-      <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">Download JSON</button>
+      <div id="grandTotal" class="q-total"></div>
+      <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
+        Download JSON
+      </button>
     </section>
   </main>
 
-  <!-- JS -->
   <script type="module" src="script.js"></script>
   <script>
-    // make browse button work
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('.q-btn--ghost') && e.target.getAttribute('for') !== 'stlFile') {
-        // ignore the footer "add more" button
-        const input = document.getElementById('stlFile');
-        if (input) input.click();
+    // keep file input clickable
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.q-btn--ghost');
+      if (btn && btn.getAttribute('for') !== 'stlFile' && !e.target.closest('#addMoreBtn')) {
+        e.preventDefault();
+        document.getElementById('stlFile')?.click();
       }
     });
-
-    // language init
-    const getLang = () => localStorage.getItem('lang') || 'en';
-    const setLang = (l) => {
-      localStorage.setItem('lang', l);
-      document.querySelectorAll('.lang-switch')
-        .forEach(b => b.classList.toggle('active', b.dataset.lang === l));
-    };
-    document.querySelectorAll('.lang-switch').forEach(b => {
-      b.addEventListener('click', () => setLang(b.dataset.lang));
-    });
-    setLang(getLang());
   </script>
 </body>
 </html>
