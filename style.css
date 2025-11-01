@@ -1,377 +1,125 @@
-/* ========================
-   Base
-======================== */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+/* ===== Tokens (minimal black/white) ===== */
+:root{
+  --ink:#0A0A0A; --muted:#6B7280; --line:#E5E7EB;
+  --bg:#FFFFFF; --panel:#FFFFFF; --shade:#F6F7F9; --black:#111111;
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif
 }
 
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f3f4f6;
-  color: #111827;
+/* ===== Header ===== */
+.q-header{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:24px;
+  padding:18px 28px;
+  border-bottom:1px solid var(--line);
+  background:#fff
 }
+.q-brand{display:flex;align-items:center;gap:14px}
+.q-logo{width:52px;height:52px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--muted)}
+.q-name{font-size:22px;font-weight:800;letter-spacing:.2px}
+.q-nav{display:flex;gap:22px}
+.q-nav-link{padding:6px 4px;text-decoration:none;border-bottom:2px solid transparent;color:inherit}
+.q-nav-link.active{border-bottom-color:var(--black);font-weight:700}
+.q-lang{display:flex;gap:8px}
+.q-lang .lang-switch{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+.q-lang .lang-switch.active{background:#000;color:#fff;border-color:#000}
 
-/* ========================
-   Layout
-======================== */
-.q-body {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+/* ===== Main (stacked) ===== */
+.q-main.q-stack{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:20px;
+  padding:20px 24px
 }
-
-.q-header {
-  height: 56px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0 1.25rem;
+.q-panel{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:16px
 }
+.q-panel-title{font-weight:800;letter-spacing:.3px;margin-bottom:12px}
 
-.q-main {
-  flex: 1;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  /* your request: border left + right */
-  border-left: 1px solid #e5e7eb;
-  border-right: 1px solid #e5e7eb;
-  background: #fff;
-  padding: 1.5rem;
+/* ===== Viewer ===== */
+.q-viewport{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--shade);
+  overflow:hidden
 }
-
-.q-stack {
-  display: grid;
-  grid-template-columns: 1.25fr 1.4fr 0.8fr;
-  gap: 1.25rem;
+#viewer{width:100%;height:560px;display:block;background:#fff}
+.q-dropzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transition:.15s}
+.q-dropzone.is-dragover{background:rgba(0,0,0,.04)}
+.drop--bw{
+  padding:28px 34px;
+  border:1.5px dashed #CFCFCF;
+  border-radius:12px;
+  background:#fff
 }
+.q-drop-title{font-weight:800}
+.q-drop-or{color:var(--muted);font-size:12px}
+.q-info{margin-top:10px;color:#111;font-size:12px}
 
-@media (max-width: 1100px) {
-  .q-stack {
-    grid-template-columns: 1fr;
-  }
+/* ===== Buttons ===== */
+.q-btn{border-radius:10px;padding:10px 14px;font-weight:700;letter-spacing:.2px;cursor:pointer}
+.q-btn--black{background:#000;color:#fff;border:1px solid #000}
+.q-btn--black[disabled]{opacity:.4;cursor:not-allowed}
+.q-btn--ghost{background:#fff;border:1px solid #000;color:#000}
+.q-btn--ghost:hover{background:#000;color:#fff}
+
+/* ===== Models list ===== */
+.q-list{display:flex;flex-direction:column}
+.q-list-head{
+  font-size:12px;color:var(--muted);display:grid;
+  grid-template-columns:44px 1.5fr 2.5fr 0.8fr 1fr 84px;
+  align-items:center;gap:12px;padding:6px 8px;border-bottom:1px solid var(--line)
 }
+.q-list-body{display:flex;flex-direction:column;gap:12px;padding:12px 6px 6px 6px}
+.q-list-footer{padding:6px 0}
+.q-empty{color:var(--muted);text-align:center;padding:24px;border:1px dashed var(--line);border-radius:12px;background:#fff}
 
-/* ========================
-   Header / Nav
-======================== */
-.q-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.q-list-row{
+  display:grid;
+  grid-template-columns:44px 1.5fr 2.5fr 0.8fr 1fr 84px;
+  gap:12px;align-items:center;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px;
+  background:#fff
 }
-
-.q-logo {
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  background: #111827;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 0.6rem;
+.q-file-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-file-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.q-file-details{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.q-file-details label{display:grid;gap:4px;font-size:11px;color:var(--muted)}
+.q-file-details input[type="number"], .q-file-details select{
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  font-size:13px
 }
+.q-price-cell{display:flex;justify-content:flex-end;font-weight:900;font-size:16px}
+.q-price-cell .js-price::after{content:" THB";font-weight:700;color:var(--muted);margin-left:4px}
 
-.q-name {
-  font-weight: 600;
+/* ===== Quotation ===== */
+.q-summary{list-style:none;padding:0;margin:8px 0 10px}
+.q-summary li{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.q-total{padding-top:8px;font-weight:900;font-size:26px}
+
+/* ===== Responsive ===== */
+@media (max-width:1000px){
+  .q-file-details{grid-template-columns:repeat(2,1fr)}
 }
-
-.q-nav {
-  display: flex;
-  gap: 1rem;
-}
-
-.q-nav-link {
-  text-decoration: none;
-  color: #4b5563;
-  font-size: 0.9rem;
-}
-
-.q-nav-link.active,
-.q-nav-link:hover {
-  color: #111827;
-  font-weight: 500;
-}
-
-.q-lang {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.lang-switch {
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 0.25rem 0.6rem;
-  border-radius: 9999px;
-  font-size: 0.7rem;
-  cursor: pointer;
-  color: #4b5563;
-}
-
-.lang-switch.active {
-  background: #111827;
-  color: #fff;
-}
-
-/* ========================
-   Panels
-======================== */
-.q-panel {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  padding: 1rem 1rem 1.25rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.q-panel-title {
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.q-panel-subtitle {
-  font-size: 0.7rem;
-  color: #6b7280;
-  margin-top: -0.5rem;
-}
-
-/* ========================
-   Viewer / Dropzone
-======================== */
-.q-viewport {
-  position: relative;
-  height: 240px;
-  background: #f9fafb;
-  border: 1px dashed #d1d5db;
-  border-radius: 0.75rem;
-  overflow: hidden;
-}
-
-#viewer {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.q-dropzone {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.q-drop-inner {
-  text-align: center;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px dashed #d1d5db;
-  border-radius: 0.75rem;
-  padding: 1rem 1.5rem;
-}
-
-.q-drop-title {
-  font-weight: 500;
-}
-
-.q-drop-or {
-  font-size: 0.7rem;
-  color: #6b7280;
-  margin: 0.25rem 0;
-}
-
-.is-dragover .q-drop-inner {
-  background: rgba(17, 24, 39, 0.05);
-  border-color: #111827;
-}
-
-/* ========================
-   List / Files
-======================== */
-.q-list-head,
-.q-list-row {
-  display: grid;
-  grid-template-columns: 0.3fr 1.3fr 1.5fr 0.4fr 0.6fr 0.3fr;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.q-list-head {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #6b7280;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.5rem;
-}
-
-.q-list-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.q-list-row {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 0.4rem 0.5rem;
-}
-
-.q-list-footer {
-  margin-top: 0.75rem;
-}
-
-.q-empty {
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-/* ========================
-   Text / Info
-======================== */
-.q-file-name {
-  font-weight: 500;
-}
-
-.q-file-meta {
-  font-size: 0.7rem;
-  color: #6b7280;
-}
-
-.q-file-details {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.q-file-details label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.65rem;
-  color: #4b5563;
-}
-
-.q-file-details select,
-.q-file-details input[type="number"] {
-  width: 90px;
-  border: 1px solid #d1d5db;
-  border-radius: 0.4rem;
-  padding: 0.2rem 0.4rem;
-  font-size: 0.7rem;
-}
-
-/* ========================
-   Buttons
-======================== */
-.q-btn {
-  border: 0;
-  outline: 0;
-  border-radius: 0.5rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-}
-
-.q-btn--black {
-  background: #111827;
-  color: #fff;
-  padding: 0.45rem 1rem;
-}
-
-.q-btn--ghost {
-  background: transparent;
-  border: 1px solid #d1d5db;
-  color: #111827;
-  padding: 0.35rem 0.75rem;
-}
-
-.q-price-cell {
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-/* ========================
-   Summary / Total
-======================== */
-.q-summary {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.q-summary-item {
-  font-size: 0.75rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.q-total {
-  margin-top: 0.75rem;
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-/* ========================
-   Hero / General
-======================== */
-.hero {
-  padding: 2.5rem 0;
-}
-
-.hero-title {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.hero-text {
-  color: #4b5563;
-  max-width: 520px;
-}
-
-.hero-actions {
-  margin-top: 1rem;
-  display: flex;
-  gap: 1rem;
-}
-
-/* ========================
-   Product cards
-======================== */
-.product-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  margin-top: 1rem;
-}
-
-.product-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  padding: 1rem;
-}
-
-.product-name {
-  font-weight: 600;
-}
-
-.product-meta {
-  color: #6b7280;
-  font-size: 0.75rem;
+@media (max-width:720px){
+  .q-list-row{grid-template-columns:36px 1fr;grid-auto-rows:auto}
+  .q-file-details,.q-price-cell{grid-column:1 / -1}
+  .q-price-cell{justify-content:flex-start}
+  #viewer{height:460px}
 }
