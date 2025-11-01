@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
   <title>Desaii • Products</title>
-  <link rel="icon" href="data:," />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="q-body">
+  <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
-      <div class="q-name">Desaii</div>
+      <div class="q-name" data-i18n="brand">Desaii</div>
     </div>
     <nav class="q-nav">
-      <a class="q-nav-link" href="index.html">Home</a>
-      <a class="q-nav-link active" href="products.html">Product</a>
-      <a class="q-nav-link" href="quote.html">3D Printing Quote</a>
+      <a href="index.html" class="q-nav-link" data-i18n="home">Home</a>
+      <a href="products.html" class="q-nav-link active" data-i18n="product">Product</a>
+      <a href="quote.html" class="q-nav-link" data-i18n="quote">3D Printing Quote</a>
     </nav>
     <div class="q-lang">
       <button class="lang-switch" data-lang="th">TH</button>
@@ -24,16 +24,37 @@
     </div>
   </header>
 
-  <main class="q-main" style="grid-template-columns:1fr;">
-    <section class="q-panel">
-      <h1 class="hero">Catalog</h1>
-      <p class="lede">Showcase your ready‑to‑ship items here.</p>
-    </section>
+  <!-- Content -->
+  <main class="q-main">
+    <h1 class="page-title">Product Catalog</h1>
+    <p class="page-subtitle">Showcase your printable parts, materials, or ready-made items.</p>
+
+    <div class="product-grid">
+      <article class="product-card">
+        <h2 class="product-name">ABS Custom Part</h2>
+        <p class="product-meta">High temp • Strong • Black</p>
+      </article>
+      <article class="product-card">
+        <h2 class="product-name">PLA Fast Print</h2>
+        <p class="product-meta">Good for prototypes</p>
+      </article>
+      <article class="product-card">
+        <h2 class="product-name">PETG Outdoor</h2>
+        <p class="product-meta">UV and impact resistant</p>
+      </article>
+    </div>
   </main>
+
   <script>
-    const getLang=()=>localStorage.getItem('lang')||'en';
-    const setLang=l=>{localStorage.setItem('lang',l);document.querySelectorAll('.lang-switch').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));};
-    document.querySelectorAll('.lang-switch').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+    const getLang = () => localStorage.getItem('lang') || 'en';
+    const setLang = (l) => {
+      localStorage.setItem('lang', l);
+      document.querySelectorAll('.lang-switch')
+        .forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+    };
+    document.querySelectorAll('.lang-switch').forEach(b => {
+      b.addEventListener('click', () => setLang(b.dataset.lang));
+    });
     setLang(getLang());
   </script>
 </body>
