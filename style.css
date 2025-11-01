@@ -1,4 +1,37 @@
 /* ========================
+   Global page border
+======================== */
+html, body {
+  background: #f3f4f6;
+  margin: 0;
+  height: 100%;
+}
+
+/* create the outer website border */
+.q-body {
+  border: 1px solid #e5e7eb;           /* thin gray border */
+  border-radius: 0.75rem;              /* optional: rounded corners */
+  background: #ffffff;                 /* white background inside */
+  max-width: 1280px;                   /* center the whole site */
+  margin: 1rem auto;                   /* some breathing space */
+  box-shadow: 0 0 15px rgba(0,0,0,0.05); /* soft shadow for depth */
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 2rem);      /* keep full height minus margins */
+}
+
+/* internal left-right borders remain */
+.q-main {
+  flex: 1;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ========================
    Base
 ======================== */
 *,
