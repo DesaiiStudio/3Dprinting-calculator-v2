@@ -5,9 +5,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 /* ---------- i18n ---------- */
+/* note: brand removed so "Desaii" doesn't get translated */
 const I18N = {
   en:{
-    // brand removed: we don't translate "Desaii"
     home:'Home',
     product:'Product',
     quote:'3D Printing Quote',
@@ -30,7 +30,6 @@ const I18N = {
     remove:'Remove'
   },
   th:{
-    // brand removed here too
     home:'หน้าแรก',
     product:'สินค้า',
     quote:'คำนวณราคา',
@@ -70,12 +69,25 @@ document.addEventListener('click',e=>{
 applyI18N();
 
 /* ---------- Config ---------- */
-const MATERIALS={PLA:{rate:2.0,baseFee:150,density_g_cm3:1.24},PETG:{rate:2.4,baseFee:160,density_g_cm3:1.27},ABS:{rate:3.0,baseFee:180,density_g_cm3:1.04},'PETG-CF':{rate:2.8,baseFee:175,density_g_cm3:1.30}};
+const MATERIALS={
+  PLA:{rate:2.0,baseFee:150,density_g_cm3:1.24},
+  PETG:{rate:2.4,baseFee:160,density_g_cm3:1.27},
+  ABS:{rate:3.0,baseFee:180,density_g_cm3:1.04},
+  'PETG-CF':{rate:2.8,baseFee:175,density_g_cm3:1.30}
+};
 const QUALITY_SPEED={draft:1134,standard:486,fine:194};
-const SHELL_BASE=0.70, INFILL_PORTION=0.30, CALIBRATION_MULT=1.4, WASTE_GRAMS_PER_PART=2.0, SUPPORT_MASS_MULT=1.25;
-const INFILL_TIME_MULT=p=>0.85+(clamp(p,0,100)/100)*0.60, SUPPORT_TIME_MULT=yn=>yn==='yes'?1.15:1.00;
-const PREP_TIME_PER_JOB_MIN=6+14/60, PREP_IS_PER_PART=false;
-const SMALL_FEE_THRESHOLD=250, SMALL_FEE_TAPER=400, PRINT_RATE_PER_HOUR=10;
+const SHELL_BASE=0.70,
+      INFILL_PORTION=0.30,
+      CALIBRATION_MULT=1.4,          // <--- your change
+      WASTE_GRAMS_PER_PART=2.0,
+      SUPPORT_MASS_MULT=1.25;
+const INFILL_TIME_MULT=p=>0.85+(clamp(p,0,100)/100)*0.60;
+const SUPPORT_TIME_MULT=yn=>yn==='yes'?1.15:1.00;
+const PREP_TIME_PER_JOB_MIN=6+14/60;
+const PREP_IS_PER_PART=false;
+const SMALL_FEE_THRESHOLD=250;
+const SMALL_FEE_TAPER=400;
+const PRINT_RATE_PER_HOUR=10;
 
 /* ---------- DOM ---------- */
 const $=id=>document.getElementById(id);
@@ -108,8 +120,8 @@ let renderer, scene, camera, controls, mesh;
   (function loop(){requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera);})();
 })();
 function size(){
-  const w=el.canvas.parentElement?.clientWidth||900,
-        h=Math.max(360,Math.floor(w*.58));
+  const w=el.canvas.parentElement?.clientWidth||900;
+  const h=Math.max(360,Math.floor(w*.58));
   renderer.setSize(w,h,false);
   camera.aspect=w/h;
   camera.updateProjectionMatrix();
@@ -117,8 +129,10 @@ function size(){
 function setMesh(geo){
   if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh.material.dispose();}
   mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x222222,metalness:0.1,roughness:0.85}));
-  mesh.rotation.set(Math.PI/2,0,0); scene.add(mesh);
-  const box=new THREE.Box3().setFromObject(mesh), s=new THREE.Vector3(); box.getSize(s);
+  mesh.rotation.set(Math.PI/2,0,0);
+  scene.add(mesh);
+  const box=new THREE.Box3().setFromObject(mesh);
+  const s=new THREE.Vector3(); box.getSize(s);
   const c=new THREE.Vector3(); box.getCenter(c);
   controls.target.copy(c);
   const dist=Math.max(s.x,s.y,s.z)*2.4+12;
@@ -126,7 +140,12 @@ function setMesh(geo){
   camera.lookAt(c);
 }
 function clearViewer(){
-  if(mesh){scene.remove(mesh);mesh.geometry.dispose?.();mesh.material.dispose?.();mesh=null;}
+  if(mesh){
+    scene.remove(mesh);
+    mesh.geometry.dispose?.();
+    mesh.material.dispose?.();
+    mesh=null;
+  }
 }
 
 /* ---------- State & Input ---------- */
@@ -209,33 +228,69 @@ function toggleEmpty(has){
 /* ---------- Model row ---------- */
 function addRow(model, geo){
   const dict=I18N[getLang()]||I18N.en;
-  const row=document.createElement('div'); row.className='file-row'; row.id=`row-${model.id}`;
+  const row=document.createElement('div');
+  row.className='file-row';
+  row.id=`row-${model.id}`;
 
-  const idx=document.createElement('div'); idx.className='idx'; idx.textContent=models.indexOf(model)+1;
+  // index
+  const idx=document.createElement('div');
+  idx.className='idx';
+  idx.textContent=models.indexOf(model)+1;
 
-  const media=document.createElement('div'); media.className='card-media';
-  const img=document.createElement('img'); img.src=model.thumbDataURL; img.alt='thumb'; img.onclick=()=>setMesh(geo);
+  // media
+  const media=document.createElement('div');
+  media.className='card-media';
+  const img=document.createElement('img');
+  img.src=model.thumbDataURL;
+  img.alt='thumb';
+  img.onclick=()=>setMesh(geo);
+
   const meta=document.createElement('div');
-  const nm=document.createElement('div'); nm.className='file-name'; nm.title=model.name; nm.textContent=model.name;
-  const vol=document.createElement('div'); vol.className='file-meta'; vol.textContent=`${(model.volume_mm3/1000).toFixed(2)} cm³`;
-  meta.append(nm,vol); media.append(img,meta);
+  const nm=document.createElement('div');
+  nm.className='file-name';
+  nm.title=model.name;
+  nm.textContent=model.name;
 
-  const details=document.createElement('div'); details.className='details';
+  // we will store this element on the model to update it later
+  const vol=document.createElement('div');
+  vol.className='file-meta';
+  model._metaEl = vol;
+  updateModelMetaDisplay(model); // initial text
+
+  meta.append(nm,vol);
+  media.append(img,meta);
+
+  // details (selects / inputs)
+  const details=document.createElement('div');
+  details.className='details';
+
   const mat=field(dict.lblMaterial, select(['PLA','PETG','ABS','PETG-CF'], model.material));
   const ql =field(dict.lblQuality,  select([['draft','Draft (0.28)'],['standard','Standard (0.20)'],['fine','Fine (0.12)']], model.quality));
   const inf=field(dict.lblInfill,   number(model.infill,0,100,1));
   const sup=field(dict.lblSupport,  select([['no','No'],['yes','Yes']], model.supports));
   details.append(mat.wrap, ql.wrap, inf.wrap, sup.wrap);
 
-  const qtyCol=document.createElement('div'); qtyCol.className='qtycol field';
-  const qtyLbl=document.createElement('label'); qtyLbl.textContent=dict.qty;
-  const qty=number(model.qty,1,999,1); qtyCol.append(qtyLbl, qty);
+  // qty
+  const qtyCol=document.createElement('div');
+  qtyCol.className='qtycol field';
+  const qtyLbl=document.createElement('label');
+  qtyLbl.textContent=dict.qty;
+  const qty=number(model.qty,1,999,1);
+  qtyCol.append(qtyLbl, qty);
 
-  const priceCol=document.createElement('div'); priceCol.className='pricecol';
-  const price=document.createElement('div'); price.className='price-chip'; price.id=`price-${model.id}`; price.textContent='—';
+  // price
+  const priceCol=document.createElement('div');
+  priceCol.className='pricecol';
+  const price=document.createElement('div');
+  price.className='price-chip';
+  price.id=`price-${model.id}`;
+  price.textContent='—';
   priceCol.append(price);
 
-  const rm=document.createElement('button'); rm.className='danger'; rm.textContent=dict.remove;
+  // remove
+  const rm=document.createElement('button');
+  rm.className='danger';
+  rm.textContent=dict.remove;
   rm.onclick=()=>{
     models=models.filter(m=>m.id!==model.id);
     row.remove();
@@ -255,19 +310,88 @@ function addRow(model, geo){
     }
   };
 
-  mat.input.onchange=()=>{model.material=mat.input.value; recalc();};
-  ql.input.onchange =()=>{model.quality=ql.input.value; recalc();};
-  inf.input.oninput =()=>{model.infill=clamp(+inf.input.value||0,0,100); inf.input.value=String(model.infill); recalc();};
-  sup.input.onchange=()=>{model.supports=sup.input.value; recalc();};
-  qty.oninput       =()=>{model.qty=Math.max(1,parseInt(qty.value||'1',10)); qty.value=String(model.qty); recalc();};
+  // events -> update model + recalc + update meta grams
+  mat.input.onchange=()=>{
+    model.material=mat.input.value;
+    updateModelMetaDisplay(model);
+    recalc();
+  };
+  ql.input.onchange =()=>{
+    model.quality=ql.input.value;
+    recalc();
+  };
+  inf.input.oninput =()=>{
+    model.infill=clamp(+inf.input.value||0,0,100);
+    inf.input.value=String(model.infill);
+    updateModelMetaDisplay(model);
+    recalc();
+  };
+  sup.input.onchange=()=>{
+    model.supports=sup.input.value;
+    updateModelMetaDisplay(model);
+    recalc();
+  };
+  qty.oninput       =()=>{
+    model.qty=Math.max(1,parseInt(qty.value||'1',10));
+    qty.value=String(model.qty);
+    recalc();
+  };
 
   row.append(idx, media, details, qtyCol, priceCol, rm);
   el.fileList.appendChild(row);
 }
-function reindex(){[...el.fileList.querySelectorAll('.file-row .idx')].forEach((n,i)=>n.textContent=String(i+1));}
-function field(label, input){const w=document.createElement('div'); w.className='field'; const l=document.createElement('label'); l.textContent=label; w.append(l,input); return {wrap:w,input};}
-function select(values, val){const s=document.createElement('select'); values.forEach(v=>{const o=document.createElement('option'); if(Array.isArray(v)){o.value=v[0]; o.textContent=v[1];} else{ o.value=v; o.textContent=v;} s.appendChild(o);}); s.value=val; return s;}
-function number(v,min,max,step){const n=document.createElement('input'); n.type='number'; n.className='number'; n.min=min; n.max=max; n.step=step; n.value=String(v); return n;}
+function reindex(){
+  [...el.fileList.querySelectorAll('.file-row .idx')].forEach((n,i)=>n.textContent=String(i+1));
+}
+function field(label, input){
+  const w=document.createElement('div');
+  w.className='field';
+  const l=document.createElement('label');
+  l.textContent=label;
+  w.append(l,input);
+  return {wrap:w,input};
+}
+function select(values, val){
+  const s=document.createElement('select');
+  values.forEach(v=>{
+    const o=document.createElement('option');
+    if(Array.isArray(v)){
+      o.value=v[0];
+      o.textContent=v[1];
+    } else {
+      o.value=v;
+      o.textContent=v;
+    }
+    s.appendChild(o);
+  });
+  s.value=val;
+  return s;
+}
+function number(v,min,max,step){
+  const n=document.createElement('input');
+  n.type='number';
+  n.className='number';
+  n.min=min;
+  n.max=max;
+  n.step=step;
+  n.value=String(v);
+  return n;
+}
+
+/* ---------- Display helper for cm3 + g ---------- */
+function updateModelMetaDisplay(model){
+  if(!model._metaEl) return;
+  const cm3 = (model.volume_mm3 / 1000).toFixed(2);
+
+  // compute grams like in pricing
+  const mat = MATERIALS[model.material];
+  const gramsSolid = (model.volume_mm3 / 1000) * mat.density_g_cm3;
+  const fill = SHELL_BASE + INFILL_PORTION * (model.infill / 100);
+  const supp = model.supports === 'yes' ? SUPPORT_MASS_MULT : 1.0;
+  const gramsPerPart = gramsSolid * fill * supp * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
+
+  model._metaEl.textContent = `${cm3} cm³  ≈ ${gramsPerPart.toFixed(1)} g`;
+}
 
 /* ---------- Math / Thumbs ---------- */
 function computeVolume(geo){
@@ -293,10 +417,14 @@ async function makeThumb(geo){
   m.rotation.set(Math.PI/2,0,0); scn.add(m);
   const box=new THREE.Box3().setFromObject(m), s=new THREE.Vector3(); box.getSize(s);
   const c=new THREE.Vector3(); box.getCenter(c);
-  const dist=Math.max(s.x,s.y,s.z)*2.6+12; cam.position.set(c.x+dist,c.y+dist,c.z+dist); cam.lookAt(c);
-  r.setSize(w,h,false); r.render(scn,cam);
+  const dist=Math.max(s.x,s.y,s.z)*2.6+12;
+  cam.position.set(c.x+dist,c.y+dist,c.z+dist);
+  cam.lookAt(c);
+  r.setSize(w,h,false);
+  r.render(scn,cam);
   const url=canvas.toDataURL('image/png');
-  m.geometry.dispose(); m.material.dispose(); r.dispose(); return url;
+  m.geometry.dispose(); m.material.dispose(); r.dispose();
+  return url;
 }
 
 /* ---------- Pricing ---------- */
@@ -342,8 +470,9 @@ function recalc(){
   const hours=minutes/60;
 
   let smallFee;
-  if(subtotal<=SMALL_FEE_THRESHOLD) smallFee=maxBase;
-  else {
+  if(subtotal<=SMALL_FEE_THRESHOLD){
+    smallFee=maxBase;
+  } else {
     const reduction=((subtotal-SMALL_FEE_THRESHOLD)/SMALL_FEE_TAPER)*maxBase;
     smallFee=Math.max(maxBase-reduction,0);
   }
@@ -372,13 +501,21 @@ function recalc(){
       costs:{subtotal:round(subtotal,2),smallOrderFee:round(smallFee,2),finalPrice:total}
     };
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='quote.json'; a.click(); URL.revokeObjectURL(url);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='quote.json';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  info(); applyI18N();
+  info();
+  applyI18N();
 }
 
 /* ---------- Helpers ---------- */
-function info(){ el.fileInfo.textContent = models.length ? `Total models: ${models.length}` : ''; }
+function info(){
+  el.fileInfo.textContent = models.length ? `Total models: ${models.length}` : '';
+}
 function round(n,d){ return Math.round(n*10**d)/10**d; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
