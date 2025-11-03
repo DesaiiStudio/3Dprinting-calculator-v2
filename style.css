@@ -9,7 +9,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);
 
 /* page side padding */
 body.q-body{
-  padding:0 40px;
+  padding:0 120px;
 }
 @media (max-width:720px){
   body.q-body{padding:0 16px;}
