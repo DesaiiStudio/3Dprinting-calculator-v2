@@ -16,6 +16,7 @@
   </script>
 </head>
 <body class="q-body">
+  <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
       <div class="q-logo">Logo</div>
@@ -32,64 +33,63 @@
     </div>
   </header>
 
-  <main class="q-main">
-    <!-- LEFT: Viewer -->
-    <section class="q-left">
-      <div class="q-panel">
-        <div class="q-panel-title" data-i18n="viewport">3D Model</div>
-        <div class="q-viewport">
-          <canvas id="viewer"></canvas>
-          <div id="dropZone" class="q-dropzone">
-            <div class="q-drop-inner drop--bw">
-              <div class="q-drop-title" data-i18n="draghere">Drag & drop STL</div>
-              <div class="q-drop-or" data-i18n="or">or</div>
-              <label for="stlFile" class="q-btn q-btn--ghost" data-i18n="browse">Browse files</label>
-              <input id="stlFile" type="file" accept=".stl" multiple hidden />
-            </div>
+  <!-- Main (stacked) -->
+  <main class="q-main q-stack">
+    <!-- 1) Viewer -->
+    <section class="q-panel">
+      <div class="q-panel-title" data-i18n="viewport">3D Model</div>
+      <div class="q-viewport">
+        <canvas id="viewer"></canvas>
+        <div id="dropZone" class="q-dropzone">
+          <div class="q-drop-inner drop--bw">
+            <div class="q-drop-title" data-i18n="draghere">Drag & drop STL</div>
+            <div class="q-drop-or" data-i18n="or">or</div>
+            <label for="stlFile" class="q-btn q-btn--ghost" data-i18n="browse">Browse files</label>
+            <input id="stlFile" type="file" accept=".stl" multiple hidden />
           </div>
         </div>
-        <p id="fileInfo" class="q-info"></p>
+      </div>
+      <p id="fileInfo" class="q-info"></p>
+    </section>
+
+    <!-- 2) Models list -->
+    <section class="q-panel">
+      <div class="q-panel-title">Models</div>
+
+      <div id="fileListWrap" class="q-list" style="display:none;">
+        <div class="q-list-head">
+          <div>#</div>
+          <div data-i18n="picture">Model</div>
+          <div data-i18n="setting">Details</div>
+          <div data-i18n="qty">Qty</div>
+          <div data-i18n="price">Price</div>
+          <div></div>
+        </div>
+        <div id="fileList" class="q-list-body"></div>
+        <div class="q-list-footer">
+          <button id="addMoreBtn" class="q-btn q-btn--ghost" data-i18n="addmore">+ Add more files</button>
+        </div>
+      </div>
+
+      <div id="fileListEmpty" class="q-empty" data-i18n="emptyList">
+        Drop STL files above to start.
       </div>
     </section>
 
-    <!-- RIGHT: Files + Quotation -->
-    <aside class="q-right">
-      <div class="q-panel q-list-panel">
-        <div id="fileListWrap" class="q-list" style="display:none;">
-          <div class="q-list-head">
-            <div>#</div>
-            <div data-i18n="picture">Model</div>
-            <div data-i18n="setting">Details</div>
-            <div data-i18n="qty">Qty</div>
-            <div data-i18n="price">Price</div>
-            <div></div>
-          </div>
-
-          <div id="fileList" class="q-list-body"></div>
-
-          <div class="q-list-footer">
-            <button id="addMoreBtn" class="q-btn q-btn--ghost" data-i18n="addmore">+ Add more files</button>
-          </div>
-        </div>
-
-        <div id="fileListEmpty" class="q-empty" data-i18n="emptyList">
-          Drop STL files here to start.
-        </div>
-      </div>
-
-      <div class="q-panel">
-        <div class="q-panel-title" data-i18n="quotation">Quotation</div>
-        <ul id="summaryList" class="q-summary"></ul>
-        <div id="grandTotal" class="q-total"></div>
-        <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
-          Download JSON
-        </button>
-      </div>
-    </aside>
+    <!-- 3) Quotation -->
+    <section class="q-panel">
+      <div class="q-panel-title" data-i18n="quotation">Quotation</div>
+      <ul id="summaryList" class="q-summary"></ul>
+      <div id="grandTotal" class="q-total"></div>
+      <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
+        Download JSON
+      </button>
+    </section>
   </main>
 
   <script type="module" src="script.js"></script>
   <script>
+    // make label clickable
     document.addEventListener('click', e => {
       if (e.target.closest('.q-btn--ghost') && !e.target.closest('#addMoreBtn')) {
         e.preventDefault();
