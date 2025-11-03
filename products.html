@@ -10,7 +10,9 @@
 <body class="q-body">
   <header class="q-header">
     <div class="q-brand">
-      <div class="q-logo">Logo</div>
+      <div class="q-logo">
+        <img src="Desaii_logo.png" alt="Desaii logo" />
+      </div>
       <div class="q-name">Desaii</div>
     </div>
     <nav class="q-nav">
@@ -27,13 +29,16 @@
   <main class="q-main" style="grid-template-columns:1fr;">
     <section class="q-panel">
       <h1 class="hero">Catalog</h1>
-      <p class="lede">Showcase your ready‑to‑ship items here.</p>
+      <p class="lede">Showcase your ready-to-ship items here.</p>
     </section>
   </main>
   <script>
-    const getLang=()=>localStorage.getItem('lang')||'en';
-    const setLang=l=>{localStorage.setItem('lang',l);document.querySelectorAll('.lang-switch').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));};
-    document.querySelectorAll('.lang-switch').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+    const getLang = () => localStorage.getItem('lang') || 'en';
+    const setLang = l => {
+      localStorage.setItem('lang', l);
+      document.querySelectorAll('.lang-switch').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+    };
+    document.querySelectorAll('.lang-switch').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
     setLang(getLang());
   </script>
 </body>
