@@ -2,74 +2,100 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Printing Quote - Desaii</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Desaii • 3D printing quote</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
-<body>
+<body class="q-body">
   <!-- Header -->
-  <header class="navbar">
-    <div class="nav-left">
-      <img src="Desaii_logo.png" alt="Desaii Logo" class="logo" />
-      <span class="brand-name" translate="no">Desaii</span>
+  <header class="q-header">
+    <div class="q-brand">
+      <div class="q-logo">Logo</div>
+      <div class="q-name" data-i18n="brand">Desaii</div>
     </div>
-    <nav class="nav-menu">
-      <a href="#" class="nav-item">Home</a>
-      <a href="#" class="nav-item">Product</a>
-      <a href="#" class="nav-item active">3D Printing Quote</a>
+    <nav class="q-nav">
+      <a href="index.html" class="q-nav-link" data-i18n="home">Home</a>
+      <a href="products.html" class="q-nav-link" data-i18n="product">Product</a>
+      <a href="quote.html" class="q-nav-link active" data-i18n="quote">3D Printing Quote</a>
     </nav>
-    <div class="lang-toggle">
-      <button id="lang-th">TH</button>
-      <button id="lang-en" class="active">ENG</button>
+    <div class="q-lang">
+      <button class="lang-switch" data-lang="th">TH</button>
+      <button class="lang-switch active" data-lang="en">ENG</button>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="container">
-    <section class="upload-section">
-      <h2>Upload 3D Model</h2>
-      <input type="file" id="fileInput" accept=".stl,.obj" multiple />
-      <p class="hint-text">Supported formats: STL, OBJ</p>
-    </section>
-
-    <section class="viewer-section">
-      <h3>3D Model View</h3>
-      <div id="viewer" class="viewer"></div>
-    </section>
-
-    <section class="model-list">
-      <h3>Model List</h3>
-      <div id="modelList" class="model-table">
-        <div class="model-header">
-          <span>#</span>
-          <span>Preview</span>
-          <span>Model Name</span>
-          <span>Material</span>
-          <span>Quantity</span>
-          <span>Setting</span>
-          <span>Price (THB)</span>
-          <span>Action</span>
+  <!-- Main (stacked) -->
+  <main class="q-main q-stack">
+    <!-- 1) Viewer -->
+    <section class="q-panel">
+      <div class="q-panel-title" data-i18n="viewport">3D Model</div>
+      <div class="q-viewport">
+        <canvas id="viewer"></canvas>
+        <div id="dropZone" class="q-dropzone">
+          <div class="q-drop-inner drop--bw">
+            <div class="q-drop-title" data-i18n="draghere">Drag & drop STL</div>
+            <div class="q-drop-or" data-i18n="or">or</div>
+            <label for="stlFile" class="q-btn q-btn--ghost" data-i18n="browse">Browse files</label>
+            <input id="stlFile" type="file" accept=".stl" multiple hidden />
+          </div>
         </div>
       </div>
-      <button id="addMore" class="add-more">+ Add More Models</button>
+      <p id="fileInfo" class="q-info"></p>
     </section>
 
-    <section class="quotation">
-      <h3>Quotation Summary</h3>
-      <div class="quote-detail">
-        <p><strong>Total Models:</strong> <span id="totalModels">0</span></p>
-        <p><strong>Total Used:</strong> <span id="totalUsed">0 g</span></p>
-        <p><strong>Total Time:</strong> <span id="totalTime">0 h 0 m</span></p>
-        <p><strong>Printing Fee:</strong> <span id="printingFee">0.00 THB</span></p>
-        <p><strong>Small Order Fee (max):</strong> 150 THB</p>
+    <!-- 2) Models list -->
+    <section class="q-panel">
+      <div class="q-panel-title">Models</div>
+
+      <div id="fileListWrap" class="q-list" style="display:none;">
+        <div class="q-list-head">
+          <div>#</div>
+          <div data-i18n="picture">Model</div>
+          <div data-i18n="setting">Details</div>
+          <div data-i18n="qty">Qty</div>
+          <div data-i18n="price">Price</div>
+          <div></div>
+        </div>
+        <div id="fileList" class="q-list-body"></div>
+        <div class="q-list-footer">
+          <button id="addMoreBtn" class="q-btn q-btn--ghost" data-i18n="addmore">+ Add more files</button>
+        </div>
       </div>
+
+      <div id="fileListEmpty" class="q-empty" data-i18n="emptyList">
+        Drop STL files above to start.
+      </div>
+    </section>
+
+    <!-- 3) Quotation -->
+    <section class="q-panel">
+      <div class="q-panel-title" data-i18n="quotation">Quotation</div>
+      <ul id="summaryList" class="q-summary"></ul>
+      <div id="grandTotal" class="q-total"></div>
+      <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
+        Download JSON
+      </button>
     </section>
   </main>
 
-  <footer class="footer">
-    <p translate="no">© 2025 Desaii. All rights reserved.</p>
-  </footer>
-
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
+  <script>
+    // make label clickable
+    document.addEventListener('click', e => {
+      if (e.target.closest('.q-btn--ghost') && !e.target.closest('#addMoreBtn')) {
+        e.preventDefault();
+        document.getElementById('stlFile')?.click();
+      }
+    });
+  </script>
 </body>
 </html>
