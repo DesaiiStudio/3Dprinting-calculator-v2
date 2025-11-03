@@ -10,7 +10,10 @@
 <body class="q-body">
   <header class="q-header">
     <div class="q-brand">
-      <div class="q-logo">Logo</div>
+      <div class="q-logo">
+        <img src="Desaii_logo.png" alt="Desaii logo" />
+      </div>
+      <!-- do NOT translate this -->
       <div class="q-name">Desaii</div>
     </div>
     <nav class="q-nav">
@@ -27,16 +30,19 @@
   <main class="q-main" style="grid-template-columns:1fr;">
     <section class="q-panel">
       <h1 class="hero">Build fast, print faster.</h1>
-      <p class="lede">Upload your STL files and get a transparent quote instantly. No sign‑up. No surprises.</p>
+      <p class="lede">Upload your STL files and get a transparent quote instantly. No sign-up. No surprises.</p>
       <p><a class="q-btn q-btn--black" href="quote.html">Open Instant Quote</a></p>
     </section>
   </main>
 
   <script>
     // keep header language buttons consistent across pages
-    const getLang=()=>localStorage.getItem('lang')||'en';
-    const setLang=l=>{localStorage.setItem('lang',l);document.querySelectorAll('.lang-switch').forEach(b=>b.classList.toggle('active',b.dataset.lang===l));};
-    document.querySelectorAll('.lang-switch').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+    const getLang = () => localStorage.getItem('lang') || 'en';
+    const setLang = l => {
+      localStorage.setItem('lang', l);
+      document.querySelectorAll('.lang-switch').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+    };
+    document.querySelectorAll('.lang-switch').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
     setLang(getLang());
   </script>
 </body>
