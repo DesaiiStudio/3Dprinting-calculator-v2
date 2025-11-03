@@ -1,16 +1,11 @@
-/* ===== Design tokens (B/W) ===== */
+/* ===== Tokens (minimal black/white) ===== */
 :root{
-  --ink:#0A0A0A;        /* main text */
-  --muted:#6B7280;      /* secondary text */
-  --line:#E5E7EB;       /* borders */
-  --bg:#FFFFFF;         /* page */
-  --panel:#FFFFFF;      /* cards */
-  --shade:#F6F7F9;      /* canvas bg */
-  --black:#111111;      /* primary accent */
+  --ink:#0A0A0A; --muted:#6B7280; --line:#E5E7EB;
+  --bg:#FFFFFF; --panel:#FFFFFF; --shade:#F6F7F9; --black:#111111;
 }
 *{box-sizing:border-box}
-html,body{background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.4}
-a{color:inherit}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
 
 /* ===== Header ===== */
 .q-header{
@@ -24,53 +19,42 @@ a{color:inherit}
 .q-nav-link{padding:6px 4px;text-decoration:none;border-bottom:2px solid transparent}
 .q-nav-link.active{border-bottom-color:var(--black);font-weight:700}
 .q-lang{display:flex;gap:8px}
-.q-lang .lang-switch{
-  border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer
-}
+.q-lang .lang-switch{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
 .q-lang .lang-switch.active{background:#000;color:#fff;border-color:#000}
 
-/* ===== Layout (60 / 40) ===== */
-.q-main{display:grid;grid-template-columns:minmax(580px,60%) minmax(380px,40%);gap:24px;padding:20px 24px}
-.q-left{min-width:0}
-.q-right{display:grid;gap:20px}
-
-/* ===== Cards ===== */
+/* ===== Main (stacked) ===== */
+.q-main.q-stack{display:grid;grid-template-columns:1fr;gap:20px;padding:20px 24px}
 .q-panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
 .q-panel-title{font-weight:800;letter-spacing:.3px;margin-bottom:12px}
 
 /* ===== Viewer ===== */
 .q-viewport{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--shade);overflow:hidden}
-#viewer{width:100%;height:540px;display:block;background:#fff}
+#viewer{width:100%;height:560px;display:block;background:#fff}
 .q-dropzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.q-drop-inner{display:flex;flex-direction:column;align-items:center;gap:8px}
 .drop--bw{padding:28px 34px;border:1.5px dashed #CFCFCF;border-radius:12px;background:#fff}
-.q-drop-title{font-weight:800;letter-spacing:.2px}
+.q-drop-title{font-weight:800}
 .q-drop-or{color:var(--muted);font-size:12px}
+.q-info{margin-top:10px;color:#111;font-size:12px}
 
-/* Buttons */
+/* ===== Buttons ===== */
 .q-btn{border-radius:10px;padding:10px 14px;font-weight:700;letter-spacing:.2px;cursor:pointer}
 .q-btn--black{background:#000;color:#fff;border:1px solid #000}
 .q-btn--black[disabled]{opacity:.4;cursor:not-allowed}
 .q-btn--ghost{background:#fff;border:1px solid #000;color:#000}
 .q-btn--ghost:hover{background:#000;color:#fff}
 
-/* Small info */
-.q-info{margin-top:10px;color:#111;font-size:12px}
-
-/* ===== Right list (vertical only) ===== */
-.q-list-panel{height:540px;display:flex;flex-direction:column}
-.q-list{display:flex;flex-direction:column;height:100%}
+/* ===== Models list ===== */
+.q-list{display:flex;flex-direction:column}
 .q-list-head{
   font-size:12px;color:var(--muted);display:grid;
   grid-template-columns:44px 1.5fr 2.5fr 0.8fr 1fr 84px;
   align-items:center;gap:12px;padding:6px 8px;border-bottom:1px solid var(--line)
 }
-.q-list-body{
-  overflow-y:auto;overflow-x:hidden;padding:10px 6px 8px 8px;display:flex;flex-direction:column;gap:12px
-}
-.q-empty{color:var(--muted);text-align:center;padding:28px}
+.q-list-body{display:flex;flex-direction:column;gap:12px;padding:12px 6px 6px 6px}
+.q-list-footer{padding:6px 0}
+.q-empty{color:var(--muted);text-align:center;padding:24px;border:1px dashed var(--line);border-radius:12px;background:#fff}
 
-/* ===== Model row — “card” ===== */
+/* Row card */
 .file-row{
   display:grid;grid-template-columns:44px 1.5fr 2.5fr 0.8fr 1fr 84px;
   gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff
@@ -83,44 +67,33 @@ a{color:inherit}
 .file-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .file-meta{font-size:12px;color:var(--muted);margin-top:2px}
 
-/* Details column: stacked, with labels */
+/* Details column */
 .details{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media (max-width:1200px){ .details{grid-template-columns:repeat(2,1fr);} }
+@media (max-width:1000px){ .details{grid-template-columns:repeat(2,1fr);} }
 .field{display:grid;gap:6px}
-.field label{font-size:11px;color:var(--muted);letter-spacing:.2px}
+.field label{font-size:11px;color:var(--muted)}
 .field input[type="number"], .field select{
   padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px
 }
 
-/* Qty */
-.qtycol .number{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px}
-
-/* Price */
+/* Qty / Price / Remove */
+.qtycol .number{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
 .pricecol{display:flex;justify-content:flex-end;align-items:center}
 .price-chip{font-weight:900;font-size:16px}
 .price-chip::after{content:" THB";font-weight:700;color:var(--muted);margin-left:4px}
-
-/* Remove */
 .file-row .danger{padding:10px 12px;border:1px solid var(--ink);color:var(--ink);background:#fff;border-radius:10px;cursor:pointer}
 .file-row .danger:hover{background:#000;color:#fff}
 
-/* Quotation */
+/* ===== Quotation ===== */
 .q-summary{list-style:none;padding:0;margin:8px 0 10px}
 .q-summary li{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
 .q-total{padding-top:8px;font-weight:900;font-size:26px}
 
-/* Hero / lede (home) */
-.hero{font-size:36px;font-weight:900;margin:0}
-.lede{font-size:16px;color:#111;margin:6px 0 16px}
-
-/* Responsive */
-@media (max-width:1100px){
-  .q-main{grid-template-columns:1fr}
-  .q-list-panel{height:auto}
-  #viewer{height:460px}
-}
+/* ===== Responsive ===== */
 @media (max-width:720px){
   .file-row{grid-template-columns:36px 1fr;grid-auto-rows:auto}
   .details,.qtycol,.pricecol{grid-column:1 / -1}
   .pricecol{justify-content:flex-start}
+  #viewer{height:460px}
 }
+
