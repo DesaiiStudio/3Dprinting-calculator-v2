@@ -6,17 +6,67 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 /* ---------- i18n ---------- */
 const I18N = {
-  en:{brand:'Desaii',home:'Home',product:'Product',quote:'3D Printing Quote',viewport:'3D Model',draghere:'Drag & drop STL',or:'or',browse:'Browse files',picture:'Model',setting:'Details',qty:'Qty',price:'Price',addmore:'+ Add more files',emptyList:'Drop STL files above to start.',quotation:'Quotation',download:'Download JSON',lblMaterial:'Material',lblQuality:'Quality',lblInfill:'Infill %',lblSupport:'Supports',remove:'Remove'},
-  th:{brand:'เดไซอิ',home:'หน้าแรก',product:'สินค้า',quote:'คำนวณราคา',viewport:'มุมมองโมเดล',draghere:'ลากและวาง STL',or:'หรือ',browse:'เลือกไฟล์',picture:'โมเดล',setting:'รายละเอียด',qty:'จำนวน',price:'ราคา',addmore:'+ เพิ่มไฟล์',emptyList:'วางไฟล์ STL ด้านบนเพื่อเริ่มต้น',quotation:'สรุปค่าใช้จ่าย',download:'ดาวน์โหลด JSON',lblMaterial:'วัสดุ',lblQuality:'คุณภาพ',lblInfill:'เปอร์เซ็นต์ Infill',lblSupport:'ซัพพอร์ต',remove:'ลบ'}
+  en:{
+    // brand removed: we don't translate "Desaii"
+    home:'Home',
+    product:'Product',
+    quote:'3D Printing Quote',
+    viewport:'3D Model',
+    draghere:'Drag & drop STL',
+    or:'or',
+    browse:'Browse files',
+    picture:'Model',
+    setting:'Details',
+    qty:'Qty',
+    price:'Price',
+    addmore:'+ Add more files',
+    emptyList:'Drop STL files above to start.',
+    quotation:'Quotation',
+    download:'Download JSON',
+    lblMaterial:'Material',
+    lblQuality:'Quality',
+    lblInfill:'Infill %',
+    lblSupport:'Supports',
+    remove:'Remove'
+  },
+  th:{
+    // brand removed here too
+    home:'หน้าแรก',
+    product:'สินค้า',
+    quote:'คำนวณราคา',
+    viewport:'มุมมองโมเดล',
+    draghere:'ลากและวาง STL',
+    or:'หรือ',
+    browse:'เลือกไฟล์',
+    picture:'โมเดล',
+    setting:'รายละเอียด',
+    qty:'จำนวน',
+    price:'ราคา',
+    addmore:'+ เพิ่มไฟล์',
+    emptyList:'วางไฟล์ STL ด้านบนเพื่อเริ่มต้น',
+    quotation:'สรุปค่าใช้จ่าย',
+    download:'ดาวน์โหลด JSON',
+    lblMaterial:'วัสดุ',
+    lblQuality:'คุณภาพ',
+    lblInfill:'เปอร์เซ็นต์ Infill',
+    lblSupport:'ซัพพอร์ต',
+    remove:'ลบ'
+  }
 };
 const getLang=()=>localStorage.getItem('lang')||'en';
 const setLang=l=>{localStorage.setItem('lang',l);applyI18N();};
 function applyI18N(){
   const dict=I18N[getLang()]||I18N.en;
-  document.querySelectorAll('[data-i18n]').forEach(n=>{const k=n.getAttribute('data-i18n'); if(dict[k]) n.textContent=dict[k];});
+  document.querySelectorAll('[data-i18n]').forEach(n=>{
+    const k=n.getAttribute('data-i18n');
+    if(dict[k]) n.textContent=dict[k];
+  });
   document.querySelectorAll('.lang-switch').forEach(b=>b.classList.toggle('active', b.dataset.lang===getLang()));
 }
-document.addEventListener('click',e=>{const b=e.target.closest('.lang-switch'); if(b) setLang(b.dataset.lang);});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.lang-switch');
+  if(b) setLang(b.dataset.lang);
+});
 applyI18N();
 
 /* ---------- Config ---------- */
@@ -29,7 +79,19 @@ const SMALL_FEE_THRESHOLD=250, SMALL_FEE_TAPER=400, PRINT_RATE_PER_HOUR=10;
 
 /* ---------- DOM ---------- */
 const $=id=>document.getElementById(id);
-const el={file:$('stlFile'),fileInfo:$('fileInfo'),dropZone:$('dropZone'),fileListWrap:$('fileListWrap'),fileList:$('fileList'),fileListEmpty:$('fileListEmpty'),summary:$('summaryList'),grandTotal:$('grandTotal'),download:$('downloadQuote'),canvas:$('viewer'),addMoreBtn:$('addMoreBtn')};
+const el={
+  file:$('stlFile'),
+  fileInfo:$('fileInfo'),
+  dropZone:$('dropZone'),
+  fileListWrap:$('fileListWrap'),
+  fileList:$('fileList'),
+  fileListEmpty:$('fileListEmpty'),
+  summary:$('summaryList'),
+  grandTotal:$('grandTotal'),
+  download:$('downloadQuote'),
+  canvas:$('viewer'),
+  addMoreBtn:$('addMoreBtn')
+};
 el.addMoreBtn?.addEventListener('click',()=>el.file?.click());
 
 /* ---------- Viewer ---------- */
@@ -45,47 +107,104 @@ let renderer, scene, camera, controls, mesh;
   controls=new OrbitControls(camera, el.canvas); controls.enableDamping=true;
   (function loop(){requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera);})();
 })();
-function size(){const w=el.canvas.parentElement?.clientWidth||900,h=Math.max(360,Math.floor(w*.58));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+function size(){
+  const w=el.canvas.parentElement?.clientWidth||900,
+        h=Math.max(360,Math.floor(w*.58));
+  renderer.setSize(w,h,false);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
 function setMesh(geo){
   if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh.material.dispose();}
   mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x222222,metalness:0.1,roughness:0.85}));
   mesh.rotation.set(Math.PI/2,0,0); scene.add(mesh);
-  const box=new THREE.Box3().setFromObject(mesh), s=new THREE.Vector3(); box.getSize(s); const c=new THREE.Vector3(); box.getCenter(c);
-  controls.target.copy(c); const dist=Math.max(s.x,s.y,s.z)*2.4+12; camera.position.set(c.x+dist,c.y+dist,c.z+dist); camera.lookAt(c);
+  const box=new THREE.Box3().setFromObject(mesh), s=new THREE.Vector3(); box.getSize(s);
+  const c=new THREE.Vector3(); box.getCenter(c);
+  controls.target.copy(c);
+  const dist=Math.max(s.x,s.y,s.z)*2.4+12;
+  camera.position.set(c.x+dist,c.y+dist,c.z+dist);
+  camera.lookAt(c);
 }
-function clearViewer(){if(mesh){scene.remove(mesh);mesh.geometry.dispose?.();mesh.material.dispose?.();mesh=null;}}
+function clearViewer(){
+  if(mesh){scene.remove(mesh);mesh.geometry.dispose?.();mesh.material.dispose?.();mesh=null;}
+}
 
 /* ---------- State & Input ---------- */
 let models=[], idSeq=1;
-el.file?.addEventListener('change',async e=>{const fs=[...(e.target.files||[])]; if(!fs.length)return; await addFiles(fs); el.file.value='';});
+el.file?.addEventListener('change',async e=>{
+  const fs=[...(e.target.files||[])];
+  if(!fs.length)return;
+  await addFiles(fs);
+  el.file.value='';
+});
 if(el.dropZone){
   ['dragenter','dragover'].forEach(evt=>el.dropZone.addEventListener(evt,e=>{e.preventDefault();}));
   el.dropZone.addEventListener('drop',async e=>{
     e.preventDefault();
-    let files=[]; const items=e.dataTransfer?.items;
-    if(items&&items.length){for(const it of items){if(it.kind==='file'){const f=it.getAsFile(); if(f) files.push(f);}}}
-    else files=[...(e.dataTransfer?.files||[])];
-    if(!files.length) return; await addFiles(files);
+    let files=[];
+    const items=e.dataTransfer?.items;
+    if(items&&items.length){
+      for(const it of items){
+        if(it.kind==='file'){
+          const f=it.getAsFile();
+          if(f) files.push(f);
+        }
+      }
+    } else {
+      files=[...(e.dataTransfer?.files||[])];
+    }
+    if(!files.length) return;
+    await addFiles(files);
   });
 }
 
 async function addFiles(fileList){
-  const stls=fileList.filter(f=>/\.stl$/i.test(f.name)); if(!stls.length){el.fileInfo.textContent='Only .stl files are supported.'; return;}
+  const stls=fileList.filter(f=>/\.stl$/i.test(f.name));
+  if(!stls.length){
+    el.fileInfo.textContent='Only .stl files are supported.';
+    return;
+  }
   let added=0;
   for(const f of stls){
     if(models.some(m=>m._sig===`${f.name}::${f.size}`)) continue;
     try{
-      const buf=await f.arrayBuffer(); const parsed=new STLLoader().parse(buf);
+      const buf=await f.arrayBuffer();
+      const parsed=new STLLoader().parse(buf);
       const g=parsed.isBufferGeometry?parsed:new THREE.BufferGeometry().fromGeometry(parsed);
       g.computeBoundingBox(); g.computeVertexNormals();
-      const vol=computeVolume(g); const thumb=await makeThumb(g);
-      const model={id:idSeq++,name:f.name,_sig:`${f.name}::${f.size}`,volume_mm3:vol,qty:1,material:'PLA',quality:'standard',infill:15,supports:'no',thumbDataURL:thumb};
-      models.push(model); addRow(model,g); setMesh(g); added++;
-    }catch(err){console.error('STL parse failed', f.name, err);}
+      const vol=computeVolume(g);
+      const thumb=await makeThumb(g);
+      const model={
+        id:idSeq++,
+        name:f.name,
+        _sig:`${f.name}::${f.size}`,
+        volume_mm3:vol,
+        qty:1,
+        material:'PLA',
+        quality:'standard',
+        infill:15,
+        supports:'no',
+        thumbDataURL:thumb
+      };
+      models.push(model);
+      addRow(model,g);
+      setMesh(g);
+      added++;
+    }catch(err){
+      console.error('STL parse failed', f.name, err);
+    }
   }
-  if(added){ el.fileListWrap.style.display='block'; el.dropZone?.style.setProperty('display','none'); toggleEmpty(true); info(); recalc(); }
+  if(added){
+    el.fileListWrap.style.display='block';
+    el.dropZone?.style.setProperty('display','none');
+    toggleEmpty(true);
+    info();
+    recalc();
+  }
 }
-function toggleEmpty(has){ if(el.fileListEmpty) el.fileListEmpty.style.display = has?'none':'block'; }
+function toggleEmpty(has){
+  if(el.fileListEmpty) el.fileListEmpty.style.display = has?'none':'block';
+}
 
 /* ---------- Model row ---------- */
 function addRow(model, geo){
@@ -118,12 +237,24 @@ function addRow(model, geo){
 
   const rm=document.createElement('button'); rm.className='danger'; rm.textContent=dict.remove;
   rm.onclick=()=>{
-    models=models.filter(m=>m.id!==model.id); row.remove();
-    if(!models.length){el.fileListWrap.style.display='none'; toggleEmpty(false); el.download.disabled=true; el.summary.innerHTML=''; el.grandTotal.innerHTML=''; clearViewer(); info(); el.dropZone?.style.removeProperty('display');}
-    else{ reindex(); info(); recalc(); }
+    models=models.filter(m=>m.id!==model.id);
+    row.remove();
+    if(!models.length){
+      el.fileListWrap.style.display='none';
+      toggleEmpty(false);
+      el.download.disabled=true;
+      el.summary.innerHTML='';
+      el.grandTotal.innerHTML='';
+      clearViewer();
+      info();
+      el.dropZone?.style.removeProperty('display');
+    } else {
+      reindex();
+      info();
+      recalc();
+    }
   };
 
-  // events
   mat.input.onchange=()=>{model.material=mat.input.value; recalc();};
   ql.input.onchange =()=>{model.quality=ql.input.value; recalc();};
   inf.input.oninput =()=>{model.infill=clamp(+inf.input.value||0,0,100); inf.input.value=String(model.infill); recalc();};
@@ -142,13 +273,16 @@ function number(v,min,max,step){const n=document.createElement('input'); n.type=
 function computeVolume(geo){
   const a=geo.attributes.position.array; let v=0;
   for(let i=0;i<a.length;i+=9){
-    const ax=a[i],ay=a[i+1],az=a[i+2], bx=a[i+3],by=a[i+4],bz=a[i+5], cx=a[i+6],cy=a[i+7],cz=a[i+8];
+    const ax=a[i],ay=a[i+1],az=a[i+2],
+          bx=a[i+3],by=a[i+4],bz=a[i+5],
+          cx=a[i+6],cy=a[i+7],cz=a[i+8];
     v += (ax*by*cz + bx*cy*az + cx*ay*bz - ax*cy*bz - bx*ay*cz - cx*by*az);
   }
   return Math.abs(v)/6;
 }
 async function makeThumb(geo){
-  const w=150,h=110; const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+  const w=150,h=110;
+  const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
   const r=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
   const scn=new THREE.Scene(); scn.background=new THREE.Color(0xffffff);
   const d1=new THREE.DirectionalLight(0xffffff,0.9); d1.position.set(1,1,1);
@@ -157,9 +291,12 @@ async function makeThumb(geo){
   const cam=new THREE.PerspectiveCamera(50,w/h,0.1,10000);
   const m=new THREE.Mesh(geo.clone(), new THREE.MeshStandardMaterial({color:0x222222,metalness:0.1,roughness:0.85}));
   m.rotation.set(Math.PI/2,0,0); scn.add(m);
-  const box=new THREE.Box3().setFromObject(m), s=new THREE.Vector3(); box.getSize(s); const c=new THREE.Vector3(); box.getCenter(c);
+  const box=new THREE.Box3().setFromObject(m), s=new THREE.Vector3(); box.getSize(s);
+  const c=new THREE.Vector3(); box.getCenter(c);
   const dist=Math.max(s.x,s.y,s.z)*2.6+12; cam.position.set(c.x+dist,c.y+dist,c.z+dist); cam.lookAt(c);
-  r.setSize(w,h,false); r.render(scn,cam); const url=canvas.toDataURL('image/png'); m.geometry.dispose(); m.material.dispose(); r.dispose(); return url;
+  r.setSize(w,h,false); r.render(scn,cam);
+  const url=canvas.toDataURL('image/png');
+  m.geometry.dispose(); m.material.dispose(); r.dispose(); return url;
 }
 
 /* ---------- Pricing ---------- */
@@ -182,11 +319,23 @@ function estimate(m){
 }
 
 function recalc(){
-  if(!models.length){ el.summary.innerHTML=''; el.grandTotal.innerHTML=''; el.download.disabled=true; info(); clearViewer(); return; }
+  if(!models.length){
+    el.summary.innerHTML='';
+    el.grandTotal.innerHTML='';
+    el.download.disabled=true;
+    info();
+    clearViewer();
+    return;
+  }
   let grams=0, minutes=0, subtotal=0, maxBase=0;
   for(const m of models){
-    const e=estimate(m); grams+=e.gramsTotal; minutes+=e.minutesTotal; subtotal+=e.sub; maxBase=Math.max(maxBase,e.matBaseFee);
-    const cell=document.getElementById(`price-${m.id}`); if(cell) cell.textContent=String(Math.ceil(e.sub));
+    const e=estimate(m);
+    grams+=e.gramsTotal;
+    minutes+=e.minutesTotal;
+    subtotal+=e.sub;
+    maxBase=Math.max(maxBase,e.matBaseFee);
+    const cell=document.getElementById(`price-${m.id}`);
+    if(cell) cell.textContent=String(Math.ceil(e.sub));
   }
   const parts=models.reduce((s,m)=>s+m.qty,0);
   minutes += PREP_TIME_PER_JOB_MIN * (PREP_IS_PER_PART ? parts : 1);
@@ -194,7 +343,10 @@ function recalc(){
 
   let smallFee;
   if(subtotal<=SMALL_FEE_THRESHOLD) smallFee=maxBase;
-  else { const reduction=((subtotal-SMALL_FEE_THRESHOLD)/SMALL_FEE_TAPER)*maxBase; smallFee=Math.max(maxBase-reduction,0); }
+  else {
+    const reduction=((subtotal-SMALL_FEE_THRESHOLD)/SMALL_FEE_TAPER)*maxBase;
+    smallFee=Math.max(maxBase-reduction,0);
+  }
 
   const total=Math.ceil(subtotal + smallFee);
   el.summary.innerHTML=`
@@ -207,9 +359,18 @@ function recalc(){
   el.download.disabled=false;
 
   el.download.onclick=()=>{
-    const payload={items:models.map(m=>({file:m.name,qty:m.qty,material:m.material,quality:m.quality,infill:m.infill,supports:m.supports})),
+    const payload={
+      items:models.map(m=>({
+        file:m.name,
+        qty:m.qty,
+        material:m.material,
+        quality:m.quality,
+        infill:m.infill,
+        supports:m.supports
+      })),
       totals:{files:models.length,parts,grams:round(grams,2),minutes:Math.round(minutes)},
-      costs:{subtotal:round(subtotal,2),smallOrderFee:round(smallFee,2),finalPrice:total}};
+      costs:{subtotal:round(subtotal,2),smallOrderFee:round(smallFee,2),finalPrice:total}
+    };
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='quote.json'; a.click(); URL.revokeObjectURL(url);
   };
