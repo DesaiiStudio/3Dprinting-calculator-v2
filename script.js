@@ -1,13 +1,13 @@
-// Premium B/W UI – same business logic, clearer layout
+// Top-to-bottom UI — same logic as before
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-/* ---------------- i18n ---------------- */
+/* ---------- i18n ---------- */
 const I18N = {
-  en:{brand:'Desaii',home:'Home',product:'Product',quote:'3D Printing Quote',viewport:'3D Model',draghere:'Drag & drop STL',or:'or',browse:'Browse files',picture:'Model',setting:'Details',qty:'Qty',price:'Price',addmore:'+ Add more files',emptyList:'Drop STL files here to start.',quotation:'Quotation',download:'Download JSON',lblMaterial:'Material',lblQuality:'Quality',lblInfill:'Infill %',lblSupport:'Supports',remove:'Remove'},
-  th:{brand:'เดไซอิ',home:'หน้าแรก',product:'สินค้า',quote:'คำนวณราคา',viewport:'มุมมองโมเดล',draghere:'ลากและวาง STL',or:'หรือ',browse:'เลือกไฟล์',picture:'โมเดล',setting:'รายละเอียด',qty:'จำนวน',price:'ราคา',addmore:'+ เพิ่มไฟล์',emptyList:'วางไฟล์ STL ที่นี่เพื่อเริ่มต้น',quotation:'สรุปค่าใช้จ่าย',download:'ดาวน์โหลด JSON',lblMaterial:'วัสดุ',lblQuality:'คุณภาพ',lblInfill:'เปอร์เซ็นต์ Infill',lblSupport:'ซัพพอร์ต',remove:'ลบ'}
+  en:{brand:'Desaii',home:'Home',product:'Product',quote:'3D Printing Quote',viewport:'3D Model',draghere:'Drag & drop STL',or:'or',browse:'Browse files',picture:'Model',setting:'Details',qty:'Qty',price:'Price',addmore:'+ Add more files',emptyList:'Drop STL files above to start.',quotation:'Quotation',download:'Download JSON',lblMaterial:'Material',lblQuality:'Quality',lblInfill:'Infill %',lblSupport:'Supports',remove:'Remove'},
+  th:{brand:'เดไซอิ',home:'หน้าแรก',product:'สินค้า',quote:'คำนวณราคา',viewport:'มุมมองโมเดล',draghere:'ลากและวาง STL',or:'หรือ',browse:'เลือกไฟล์',picture:'โมเดล',setting:'รายละเอียด',qty:'จำนวน',price:'ราคา',addmore:'+ เพิ่มไฟล์',emptyList:'วางไฟล์ STL ด้านบนเพื่อเริ่มต้น',quotation:'สรุปค่าใช้จ่าย',download:'ดาวน์โหลด JSON',lblMaterial:'วัสดุ',lblQuality:'คุณภาพ',lblInfill:'เปอร์เซ็นต์ Infill',lblSupport:'ซัพพอร์ต',remove:'ลบ'}
 };
 const getLang=()=>localStorage.getItem('lang')||'en';
 const setLang=l=>{localStorage.setItem('lang',l);applyI18N();};
@@ -19,7 +19,7 @@ function applyI18N(){
 document.addEventListener('click',e=>{const b=e.target.closest('.lang-switch'); if(b) setLang(b.dataset.lang);});
 applyI18N();
 
-/* ---------------- Config ---------------- */
+/* ---------- Config ---------- */
 const MATERIALS={PLA:{rate:2.0,baseFee:150,density_g_cm3:1.24},PETG:{rate:2.4,baseFee:160,density_g_cm3:1.27},ABS:{rate:3.0,baseFee:180,density_g_cm3:1.04},'PETG-CF':{rate:2.8,baseFee:175,density_g_cm3:1.30}};
 const QUALITY_SPEED={draft:1134,standard:486,fine:194};
 const SHELL_BASE=0.70, INFILL_PORTION=0.30, CALIBRATION_MULT=2.02, WASTE_GRAMS_PER_PART=2.0, SUPPORT_MASS_MULT=1.25;
@@ -27,14 +27,14 @@ const INFILL_TIME_MULT=p=>0.85+(clamp(p,0,100)/100)*0.60, SUPPORT_TIME_MULT=yn=>
 const PREP_TIME_PER_JOB_MIN=6+14/60, PREP_IS_PER_PART=false;
 const SMALL_FEE_THRESHOLD=250, SMALL_FEE_TAPER=400, PRINT_RATE_PER_HOUR=10;
 
-/* ---------------- DOM ---------------- */
+/* ---------- DOM ---------- */
 const $=id=>document.getElementById(id);
 const el={file:$('stlFile'),fileInfo:$('fileInfo'),dropZone:$('dropZone'),fileListWrap:$('fileListWrap'),fileList:$('fileList'),fileListEmpty:$('fileListEmpty'),summary:$('summaryList'),grandTotal:$('grandTotal'),download:$('downloadQuote'),canvas:$('viewer'),addMoreBtn:$('addMoreBtn')};
 el.addMoreBtn?.addEventListener('click',()=>el.file?.click());
 
-/* ---------------- Viewer (neutral gray) ---------------- */
+/* ---------- Viewer ---------- */
 let renderer, scene, camera, controls, mesh;
-(function init(){
+(function initViewer(){
   renderer=new THREE.WebGLRenderer({canvas:el.canvas,antialias:true,preserveDrawingBuffer:true});
   scene=new THREE.Scene(); scene.background=new THREE.Color(0xffffff);
   const key=new THREE.DirectionalLight(0xffffff,0.9); key.position.set(1,1,1);
@@ -42,7 +42,7 @@ let renderer, scene, camera, controls, mesh;
   const amb=new THREE.AmbientLight(0xffffff,0.35); scene.add(key,fill,amb);
   camera=new THREE.PerspectiveCamera(50,1,0.1,10000); camera.position.set(140,140,140);
   size(); window.addEventListener('resize',size);
-  controls=new OrbitControls(camera,el.canvas); controls.enableDamping=true;
+  controls=new OrbitControls(camera, el.canvas); controls.enableDamping=true;
   (function loop(){requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera);})();
 })();
 function size(){const w=el.canvas.parentElement?.clientWidth||900,h=Math.max(360,Math.floor(w*.58));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
@@ -55,7 +55,7 @@ function setMesh(geo){
 }
 function clearViewer(){if(mesh){scene.remove(mesh);mesh.geometry.dispose?.();mesh.material.dispose?.();mesh=null;}}
 
-/* ---------------- State & Input ---------------- */
+/* ---------- State & Input ---------- */
 let models=[], idSeq=1;
 el.file?.addEventListener('change',async e=>{const fs=[...(e.target.files||[])]; if(!fs.length)return; await addFiles(fs); el.file.value='';});
 if(el.dropZone){
@@ -87,7 +87,7 @@ async function addFiles(fileList){
 }
 function toggleEmpty(has){ if(el.fileListEmpty) el.fileListEmpty.style.display = has?'none':'block'; }
 
-/* ---------------- Row (clean, labeled) ---------------- */
+/* ---------- Model row ---------- */
 function addRow(model, geo){
   const dict=I18N[getLang()]||I18N.en;
   const row=document.createElement('div'); row.className='file-row'; row.id=`row-${model.id}`;
@@ -103,9 +103,9 @@ function addRow(model, geo){
 
   const details=document.createElement('div'); details.className='details';
   const mat=field(dict.lblMaterial, select(['PLA','PETG','ABS','PETG-CF'], model.material));
-  const ql=field(dict.lblQuality, select([['draft','Draft (0.28)'],['standard','Standard (0.20)'],['fine','Fine (0.12)']], model.quality));
-  const inf=field(dict.lblInfill, number(model.infill,0,100,1));
-  const sup=field(dict.lblSupport, select([['no','No'],['yes','Yes']], model.supports));
+  const ql =field(dict.lblQuality,  select([['draft','Draft (0.28)'],['standard','Standard (0.20)'],['fine','Fine (0.12)']], model.quality));
+  const inf=field(dict.lblInfill,   number(model.infill,0,100,1));
+  const sup=field(dict.lblSupport,  select([['no','No'],['yes','Yes']], model.supports));
   details.append(mat.wrap, ql.wrap, inf.wrap, sup.wrap);
 
   const qtyCol=document.createElement('div'); qtyCol.className='qtycol field';
@@ -125,10 +125,10 @@ function addRow(model, geo){
 
   // events
   mat.input.onchange=()=>{model.material=mat.input.value; recalc();};
-  ql.input.onchange=()=>{model.quality=ql.input.value; recalc();};
+  ql.input.onchange =()=>{model.quality=ql.input.value; recalc();};
   inf.input.oninput =()=>{model.infill=clamp(+inf.input.value||0,0,100); inf.input.value=String(model.infill); recalc();};
   sup.input.onchange=()=>{model.supports=sup.input.value; recalc();};
-  qty.oninput      =()=>{model.qty=Math.max(1,parseInt(qty.value||'1',10)); qty.value=String(model.qty); recalc();};
+  qty.oninput       =()=>{model.qty=Math.max(1,parseInt(qty.value||'1',10)); qty.value=String(model.qty); recalc();};
 
   row.append(idx, media, details, qtyCol, priceCol, rm);
   el.fileList.appendChild(row);
@@ -138,7 +138,7 @@ function field(label, input){const w=document.createElement('div'); w.className=
 function select(values, val){const s=document.createElement('select'); values.forEach(v=>{const o=document.createElement('option'); if(Array.isArray(v)){o.value=v[0]; o.textContent=v[1];} else{ o.value=v; o.textContent=v;} s.appendChild(o);}); s.value=val; return s;}
 function number(v,min,max,step){const n=document.createElement('input'); n.type='number'; n.className='number'; n.min=min; n.max=max; n.step=step; n.value=String(v); return n;}
 
-/* ---------------- Math / thumbnails ---------------- */
+/* ---------- Math / Thumbs ---------- */
 function computeVolume(geo){
   const a=geo.attributes.position.array; let v=0;
   for(let i=0;i<a.length;i+=9){
@@ -162,7 +162,7 @@ async function makeThumb(geo){
   r.setSize(w,h,false); r.render(scn,cam); const url=canvas.toDataURL('image/png'); m.geometry.dispose(); m.material.dispose(); r.dispose(); return url;
 }
 
-/* ---------------- Pricing ---------------- */
+/* ---------- Pricing ---------- */
 function estimate(m){
   const mat=MATERIALS[m.material];
   const gramsSolid=(m.volume_mm3/1000)*mat.density_g_cm3;
@@ -217,7 +217,7 @@ function recalc(){
   info(); applyI18N();
 }
 
-/* ---------------- Helpers ---------------- */
+/* ---------- Helpers ---------- */
 function info(){ el.fileInfo.textContent = models.length ? `Total models: ${models.length}` : ''; }
 function round(n,d){ return Math.round(n*10**d)/10**d; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
