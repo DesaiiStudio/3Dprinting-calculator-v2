@@ -72,7 +72,7 @@ applyI18N();
 /* ---------- Config ---------- */
 const MATERIALS={PLA:{rate:2.0,baseFee:150,density_g_cm3:1.24},PETG:{rate:2.4,baseFee:160,density_g_cm3:1.27},ABS:{rate:3.0,baseFee:180,density_g_cm3:1.04},'PETG-CF':{rate:2.8,baseFee:175,density_g_cm3:1.30}};
 const QUALITY_SPEED={draft:1134,standard:486,fine:194};
-const SHELL_BASE=0.70, INFILL_PORTION=0.30, CALIBRATION_MULT=2.02, WASTE_GRAMS_PER_PART=2.0, SUPPORT_MASS_MULT=1.25;
+const SHELL_BASE=0.70, INFILL_PORTION=0.30, CALIBRATION_MULT=1.4, WASTE_GRAMS_PER_PART=2.0, SUPPORT_MASS_MULT=1.25;
 const INFILL_TIME_MULT=p=>0.85+(clamp(p,0,100)/100)*0.60, SUPPORT_TIME_MULT=yn=>yn==='yes'?1.15:1.00;
 const PREP_TIME_PER_JOB_MIN=6+14/60, PREP_IS_PER_PART=false;
 const SMALL_FEE_THRESHOLD=250, SMALL_FEE_TAPER=400, PRINT_RATE_PER_HOUR=10;
