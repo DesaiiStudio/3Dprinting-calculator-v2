@@ -221,3 +221,95 @@ function recalc(){
 function info(){ el.fileInfo.textContent = models.length ? `Total models: ${models.length}` : ''; }
 function round(n,d){ return Math.round(n*10**d)/10**d; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+const fileInput = document.getElementById("fileInput");
+const modelList = document.getElementById("modelList");
+const totalModels = document.getElementById("totalModels");
+const totalUsed = document.getElementById("totalUsed");
+const totalTime = document.getElementById("totalTime");
+const printingFee = document.getElementById("printingFee");
+
+let models = [];
+
+// Example price logic
+function calculatePrice(volumeCm3, material = "PLA") {
+  const pricePerGram = {
+    PLA: 2.5,
+    PETG: 3.0,
+    ABS: 3.2,
+    ASA: 3.5,
+  };
+  const density = 1.24; // g/cm³ for PLA
+  const weight = volumeCm3 * density;
+  return {
+    weight,
+    price: weight * (pricePerGram[material] || 2.5),
+  };
+}
+
+function renderModelList() {
+  const rows = models.map((m, i) => `
+    <div class="model-row">
+      <span>${i + 1}</span>
+      <img src="${m.preview}" alt="model preview" />
+      <span>${m.name}</span>
+      <select>
+        <option>PLA</option>
+        <option>PETG</option>
+        <option>ABS</option>
+        <option>ASA</option>
+      </select>
+      <input type="number" value="1" min="1" />
+      <span>${m.setting}</span>
+      <span>${m.price.toFixed(2)}</span>
+      <button onclick="removeModel(${i})">Remove</button>
+    </div>
+  `).join("");
+  modelList.innerHTML = `
+    <div class="model-header">
+      <span>#</span>
+      <span>Preview</span>
+      <span>Model Name</span>
+      <span>Material</span>
+      <span>Quantity</span>
+      <span>Setting</span>
+      <span>Price (THB)</span>
+      <span>Action</span>
+    </div>
+    ${rows}
+  `;
+  updateSummary();
+}
+
+function updateSummary() {
+  const totalWeight = models.reduce((sum, m) => sum + m.weight, 0);
+  const totalPrice = models.reduce((sum, m) => sum + m.price, 0);
+  totalModels.textContent = models.length;
+  totalUsed.textContent = `${totalWeight.toFixed(2)} g`;
+  totalTime.textContent = `${(models.length * 0.5).toFixed(1)} h`;
+  printingFee.textContent = `${totalPrice.toFixed(2)} THB`;
+}
+
+function removeModel(index) {
+  models.splice(index, 1);
+  renderModelList();
+}
+
+fileInput.addEventListener("change", (e) => {
+  Array.from(e.target.files).forEach((file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fakeVolume = Math.random() * 15 + 5; // Mock value
+      const { weight, price } = calculatePrice(fakeVolume);
+      models.push({
+        name: file.name,
+        preview: "https://via.placeholder.com/80?text=3D",
+        setting: `${fakeVolume.toFixed(2)} cm³`,
+        weight,
+        price,
+      });
+      renderModelList();
+    };
+    reader.readAsDataURL(file);
+  });
+});
