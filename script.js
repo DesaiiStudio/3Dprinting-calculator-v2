@@ -1,413 +1,223 @@
-// script.js
+// Premium B/W UI – same business logic, clearer layout
+
 import * as THREE from 'three';
-import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-/**
- * CENTRAL CONFIG
- * All prices in THB
- */
-const CONFIG = {
-  currency: 'THB',
-  // density in g/cm³, price per kg in THB
-  materials: {
-    PLA:  { density: 1.24, pricePerKg: 500 },
-    ABS:  { density: 1.04, pricePerKg: 550 },
-    PETG: { density: 1.27, pricePerKg: 520 }
-  },
-  defaultMaterial: 'PLA',
-  gramsPerHour: 25,          // for time estimate
-  machineRatePerHour: 25,    // THB/h
-  electricityRatePerHour: 5, // THB/h
-  minCharge: 60,             // THB
-  margin: 1.25               // 25% markup
+/* ---------------- i18n ---------------- */
+const I18N = {
+  en:{brand:'Desaii',home:'Home',product:'Product',quote:'3D Printing Quote',viewport:'3D Model',draghere:'Drag & drop STL',or:'or',browse:'Browse files',picture:'Model',setting:'Details',qty:'Qty',price:'Price',addmore:'+ Add more files',emptyList:'Drop STL files here to start.',quotation:'Quotation',download:'Download JSON',lblMaterial:'Material',lblQuality:'Quality',lblInfill:'Infill %',lblSupport:'Supports',remove:'Remove'},
+  th:{brand:'เดไซอิ',home:'หน้าแรก',product:'สินค้า',quote:'คำนวณราคา',viewport:'มุมมองโมเดล',draghere:'ลากและวาง STL',or:'หรือ',browse:'เลือกไฟล์',picture:'โมเดล',setting:'รายละเอียด',qty:'จำนวน',price:'ราคา',addmore:'+ เพิ่มไฟล์',emptyList:'วางไฟล์ STL ที่นี่เพื่อเริ่มต้น',quotation:'สรุปค่าใช้จ่าย',download:'ดาวน์โหลด JSON',lblMaterial:'วัสดุ',lblQuality:'คุณภาพ',lblInfill:'เปอร์เซ็นต์ Infill',lblSupport:'ซัพพอร์ต',remove:'ลบ'}
 };
+const getLang=()=>localStorage.getItem('lang')||'en';
+const setLang=l=>{localStorage.setItem('lang',l);applyI18N();};
+function applyI18N(){
+  const dict=I18N[getLang()]||I18N.en;
+  document.querySelectorAll('[data-i18n]').forEach(n=>{const k=n.getAttribute('data-i18n'); if(dict[k]) n.textContent=dict[k];});
+  document.querySelectorAll('.lang-switch').forEach(b=>b.classList.toggle('active', b.dataset.lang===getLang()));
+}
+document.addEventListener('click',e=>{const b=e.target.closest('.lang-switch'); if(b) setLang(b.dataset.lang);});
+applyI18N();
 
-const dom = {
-  dropZone: document.getElementById('dropZone'),
-  fileInput: document.getElementById('stlFile'),
-  fileListWrap: document.getElementById('fileListWrap'),
-  fileListEmpty: document.getElementById('fileListEmpty'),
-  fileList: document.getElementById('fileList'),
-  summaryList: document.getElementById('summaryList'),
-  grandTotal: document.getElementById('grandTotal'),
-  downloadBtn: document.getElementById('downloadQuote'),
-  addMoreBtn: document.getElementById('addMoreBtn'),
-  fileInfo: document.getElementById('fileInfo'),
-  viewerCanvas: document.getElementById('viewer')
-};
+/* ---------------- Config ---------------- */
+const MATERIALS={PLA:{rate:2.0,baseFee:150,density_g_cm3:1.24},PETG:{rate:2.4,baseFee:160,density_g_cm3:1.27},ABS:{rate:3.0,baseFee:180,density_g_cm3:1.04},'PETG-CF':{rate:2.8,baseFee:175,density_g_cm3:1.30}};
+const QUALITY_SPEED={draft:1134,standard:486,fine:194};
+const SHELL_BASE=0.70, INFILL_PORTION=0.30, CALIBRATION_MULT=2.02, WASTE_GRAMS_PER_PART=2.0, SUPPORT_MASS_MULT=1.25;
+const INFILL_TIME_MULT=p=>0.85+(clamp(p,0,100)/100)*0.60, SUPPORT_TIME_MULT=yn=>yn==='yes'?1.15:1.00;
+const PREP_TIME_PER_JOB_MIN=6+14/60, PREP_IS_PER_PART=false;
+const SMALL_FEE_THRESHOLD=250, SMALL_FEE_TAPER=400, PRINT_RATE_PER_HOUR=10;
 
-const state = {
-  models: [],
-  counter: 1,
-  three: null
-};
+/* ---------------- DOM ---------------- */
+const $=id=>document.getElementById(id);
+const el={file:$('stlFile'),fileInfo:$('fileInfo'),dropZone:$('dropZone'),fileListWrap:$('fileListWrap'),fileList:$('fileList'),fileListEmpty:$('fileListEmpty'),summary:$('summaryList'),grandTotal:$('grandTotal'),download:$('downloadQuote'),canvas:$('viewer'),addMoreBtn:$('addMoreBtn')};
+el.addMoreBtn?.addEventListener('click',()=>el.file?.click());
 
-// =========================
-// 1. THREE.JS VIEWER SETUP
-// =========================
-function initViewer() {
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xf6f7f9);
+/* ---------------- Viewer (neutral gray) ---------------- */
+let renderer, scene, camera, controls, mesh;
+(function init(){
+  renderer=new THREE.WebGLRenderer({canvas:el.canvas,antialias:true,preserveDrawingBuffer:true});
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0xffffff);
+  const key=new THREE.DirectionalLight(0xffffff,0.9); key.position.set(1,1,1);
+  const fill=new THREE.DirectionalLight(0xffffff,0.6); fill.position.set(-1,0.5,1);
+  const amb=new THREE.AmbientLight(0xffffff,0.35); scene.add(key,fill,amb);
+  camera=new THREE.PerspectiveCamera(50,1,0.1,10000); camera.position.set(140,140,140);
+  size(); window.addEventListener('resize',size);
+  controls=new OrbitControls(camera,el.canvas); controls.enableDamping=true;
+  (function loop(){requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera);})();
+})();
+function size(){const w=el.canvas.parentElement?.clientWidth||900,h=Math.max(360,Math.floor(w*.58));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+function setMesh(geo){
+  if(mesh){scene.remove(mesh);mesh.geometry.dispose();mesh.material.dispose();}
+  mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x222222,metalness:0.1,roughness:0.85}));
+  mesh.rotation.set(Math.PI/2,0,0); scene.add(mesh);
+  const box=new THREE.Box3().setFromObject(mesh), s=new THREE.Vector3(); box.getSize(s); const c=new THREE.Vector3(); box.getCenter(c);
+  controls.target.copy(c); const dist=Math.max(s.x,s.y,s.z)*2.4+12; camera.position.set(c.x+dist,c.y+dist,c.z+dist); camera.lookAt(c);
+}
+function clearViewer(){if(mesh){scene.remove(mesh);mesh.geometry.dispose?.();mesh.material.dispose?.();mesh=null;}}
 
-  const camera = new THREE.PerspectiveCamera(45, dom.viewerCanvas.clientWidth / dom.viewerCanvas.clientHeight, 0.1, 1000);
-  camera.position.set(80, 80, 80);
+/* ---------------- State & Input ---------------- */
+let models=[], idSeq=1;
+el.file?.addEventListener('change',async e=>{const fs=[...(e.target.files||[])]; if(!fs.length)return; await addFiles(fs); el.file.value='';});
+if(el.dropZone){
+  ['dragenter','dragover'].forEach(evt=>el.dropZone.addEventListener(evt,e=>{e.preventDefault();}));
+  el.dropZone.addEventListener('drop',async e=>{
+    e.preventDefault();
+    let files=[]; const items=e.dataTransfer?.items;
+    if(items&&items.length){for(const it of items){if(it.kind==='file'){const f=it.getAsFile(); if(f) files.push(f);}}}
+    else files=[...(e.dataTransfer?.files||[])];
+    if(!files.length) return; await addFiles(files);
+  });
+}
 
-  const renderer = new THREE.WebGLRenderer({ canvas: dom.viewerCanvas, antialias: true });
-  renderer.setSize(dom.viewerCanvas.clientWidth, dom.viewerCanvas.clientHeight);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-
-  // light
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
-  hemi.position.set(0, 200, 0);
-  scene.add(hemi);
-
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-  dirLight.position.set(80, 80, 80);
-  scene.add(dirLight);
-
-  function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
+async function addFiles(fileList){
+  const stls=fileList.filter(f=>/\.stl$/i.test(f.name)); if(!stls.length){el.fileInfo.textContent='Only .stl files are supported.'; return;}
+  let added=0;
+  for(const f of stls){
+    if(models.some(m=>m._sig===`${f.name}::${f.size}`)) continue;
+    try{
+      const buf=await f.arrayBuffer(); const parsed=new STLLoader().parse(buf);
+      const g=parsed.isBufferGeometry?parsed:new THREE.BufferGeometry().fromGeometry(parsed);
+      g.computeBoundingBox(); g.computeVertexNormals();
+      const vol=computeVolume(g); const thumb=await makeThumb(g);
+      const model={id:idSeq++,name:f.name,_sig:`${f.name}::${f.size}`,volume_mm3:vol,qty:1,material:'PLA',quality:'standard',infill:15,supports:'no',thumbDataURL:thumb};
+      models.push(model); addRow(model,g); setMesh(g); added++;
+    }catch(err){console.error('STL parse failed', f.name, err);}
   }
-  animate();
-
-  state.three = { scene, camera, renderer, controls };
+  if(added){ el.fileListWrap.style.display='block'; el.dropZone?.style.setProperty('display','none'); toggleEmpty(true); info(); recalc(); }
 }
+function toggleEmpty(has){ if(el.fileListEmpty) el.fileListEmpty.style.display = has?'none':'block'; }
 
-function showGeometry(geometry) {
-  if (!state.three) return;
-  const { scene, camera, controls } = state.three;
+/* ---------------- Row (clean, labeled) ---------------- */
+function addRow(model, geo){
+  const dict=I18N[getLang()]||I18N.en;
+  const row=document.createElement('div'); row.className='file-row'; row.id=`row-${model.id}`;
 
-  // clear old mesh
-  scene.children = scene.children.filter(obj => !(obj.isMesh));
+  const idx=document.createElement('div'); idx.className='idx'; idx.textContent=models.indexOf(model)+1;
 
-  const material = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.1, roughness: 0.7 });
-  const mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
+  const media=document.createElement('div'); media.className='card-media';
+  const img=document.createElement('img'); img.src=model.thumbDataURL; img.alt='thumb'; img.onclick=()=>setMesh(geo);
+  const meta=document.createElement('div');
+  const nm=document.createElement('div'); nm.className='file-name'; nm.title=model.name; nm.textContent=model.name;
+  const vol=document.createElement('div'); vol.className='file-meta'; vol.textContent=`${(model.volume_mm3/1000).toFixed(2)} cm³`;
+  meta.append(nm,vol); media.append(img,meta);
 
-  // auto center & frame
-  geometry.computeBoundingBox();
-  const box = geometry.boundingBox;
-  const center = new THREE.Vector3();
-  box.getCenter(center);
-  mesh.position.sub(center); // move to origin
+  const details=document.createElement('div'); details.className='details';
+  const mat=field(dict.lblMaterial, select(['PLA','PETG','ABS','PETG-CF'], model.material));
+  const ql=field(dict.lblQuality, select([['draft','Draft (0.28)'],['standard','Standard (0.20)'],['fine','Fine (0.12)']], model.quality));
+  const inf=field(dict.lblInfill, number(model.infill,0,100,1));
+  const sup=field(dict.lblSupport, select([['no','No'],['yes','Yes']], model.supports));
+  details.append(mat.wrap, ql.wrap, inf.wrap, sup.wrap);
 
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const maxDim = Math.max(size.x, size.y, size.z);
+  const qtyCol=document.createElement('div'); qtyCol.className='qtycol field';
+  const qtyLbl=document.createElement('label'); qtyLbl.textContent=dict.qty;
+  const qty=number(model.qty,1,999,1); qtyCol.append(qtyLbl, qty);
 
-  const fitDist = maxDim * 1.8;
-  camera.position.set(fitDist, fitDist, fitDist);
-  camera.lookAt(new THREE.Vector3(0, 0, 0));
-  controls.target.set(0, 0, 0);
-  controls.update();
-}
+  const priceCol=document.createElement('div'); priceCol.className='pricecol';
+  const price=document.createElement('div'); price.className='price-chip'; price.id=`price-${model.id}`; price.textContent='—';
+  priceCol.append(price);
 
-// =========================
-// 2. STL → VOLUME → GRAMS
-// =========================
-
-/**
- * IMPORTANT:
- * - STLLoader returns geometry in MILLIMETERS.
- * - Our volume calc returns in mm³.
- * - Density is in g/cm³.
- * - So we MUST:  cm³ = mm³ / 1000
- */
-function computeVolumeMm3(geometry) {
-  const pos = geometry.attributes.position;
-  let volume = 0;
-  const v1 = new THREE.Vector3();
-  const v2 = new THREE.Vector3();
-  const v3 = new THREE.Vector3();
-
-  for (let i = 0; i < pos.count; i += 3) {
-    v1.fromBufferAttribute(pos, i + 0);
-    v2.fromBufferAttribute(pos, i + 1);
-    v3.fromBufferAttribute(pos, i + 2);
-
-    // signed volume of tetrahedron (0, v1, v2, v3)
-    volume += v1.dot(v2.cross(v3)) / 6.0;
-  }
-
-  return Math.abs(volume); // mm³
-}
-
-function calcUsageFactor(infillPercent) {
-  // simple model:
-  // 25% base for walls/top/bottom + scaled infill
-  const base = 0.25;
-  const infillEff = 0.75;
-  return base + (infillPercent / 100) * infillEff;
-}
-
-function calculatePricing({ volumeMm3, materialKey, infillPercent }) {
-  const mat = CONFIG.materials[materialKey] || CONFIG.materials[CONFIG.defaultMaterial];
-  const density = mat.density; // g/cm³
-
-  const volumeCm3 = volumeMm3 / 1000;         // 🔐 this is the line you forgot
-  const rawWeightG = volumeCm3 * density;     // fully solid
-  const usageFactor = calcUsageFactor(infillPercent);
-  const printWeightG = rawWeightG * usageFactor;
-
-  // material cost
-  const materialCost = (printWeightG / 1000) * mat.pricePerKg;
-
-  // time & machine
-  const printTimeHr = printWeightG / CONFIG.gramsPerHour;
-  const machineCost = printTimeHr * CONFIG.machineRatePerHour;
-  const elecCost = printTimeHr * CONFIG.electricityRatePerHour;
-
-  let subtotal = materialCost + machineCost + elecCost;
-  subtotal = subtotal * CONFIG.margin;
-
-  const unitPrice = Math.max(CONFIG.minCharge, subtotal);
-
-  return {
-    volumeCm3,
-    rawWeightG,
-    printWeightG,
-    materialCost,
-    machineCost,
-    elecCost,
-    unitPrice,
-    printTimeHr
+  const rm=document.createElement('button'); rm.className='danger'; rm.textContent=dict.remove;
+  rm.onclick=()=>{
+    models=models.filter(m=>m.id!==model.id); row.remove();
+    if(!models.length){el.fileListWrap.style.display='none'; toggleEmpty(false); el.download.disabled=true; el.summary.innerHTML=''; el.grandTotal.innerHTML=''; clearViewer(); info(); el.dropZone?.style.removeProperty('display');}
+    else{ reindex(); info(); recalc(); }
   };
-}
-
-// =========================
-// 3. DOM HELPERS
-// =========================
-function renderEmptyState(showEmpty) {
-  dom.fileListEmpty.style.display = showEmpty ? 'block' : 'none';
-  dom.fileListWrap.style.display = showEmpty ? 'none' : 'block';
-}
-
-function createModelRow(model) {
-  const row = document.createElement('div');
-  row.className = 'q-list-row';
-  row.dataset.id = model.id;
-
-  // material options
-  const materialOptions = Object.keys(CONFIG.materials)
-    .map(k => `<option value="${k}" ${k === model.material ? 'selected' : ''}>${k}</option>`)
-    .join('');
-
-  row.innerHTML = `
-    <div>${model.index}</div>
-    <div>
-      <div class="q-file-name">${model.name}</div>
-      <div class="q-file-meta">${model.volumeCm3.toFixed(2)} cm³ • ${model.printWeightG.toFixed(1)} g</div>
-    </div>
-    <div class="q-file-details">
-      <label>Mat
-        <select class="js-mat">${materialOptions}</select>
-      </label>
-      <label>Infill
-        <input type="number" class="js-infill" min="0" max="100" step="5" value="${model.infill}">
-      </label>
-      <label>Layer
-        <input type="number" class="js-layer" min="0.08" max="0.4" step="0.02" value="${model.layerHeight}">
-      </label>
-    </div>
-    <div>
-      <input type="number" class="js-qty" min="1" value="${model.qty}" style="width:60px;">
-    </div>
-    <div class="q-price-cell">
-      <span class="js-price">${formatPrice(model.lineTotal)}</span>
-    </div>
-    <div>
-      <button class="q-btn q-btn--ghost js-remove">×</button>
-    </div>
-  `;
 
   // events
-  const selMat = row.querySelector('.js-mat');
-  const inpInfill = row.querySelector('.js-infill');
-  const inpQty = row.querySelector('.js-qty');
-  const btnRemove = row.querySelector('.js-remove');
+  mat.input.onchange=()=>{model.material=mat.input.value; recalc();};
+  ql.input.onchange=()=>{model.quality=ql.input.value; recalc();};
+  inf.input.oninput =()=>{model.infill=clamp(+inf.input.value||0,0,100); inf.input.value=String(model.infill); recalc();};
+  sup.input.onchange=()=>{model.supports=sup.input.value; recalc();};
+  qty.oninput      =()=>{model.qty=Math.max(1,parseInt(qty.value||'1',10)); qty.value=String(model.qty); recalc();};
 
-  selMat.addEventListener('change', () => updateModelFromRow(model.id, row));
-  inpInfill.addEventListener('input', () => updateModelFromRow(model.id, row));
-  inpQty.addEventListener('input', () => updateModelFromRow(model.id, row));
-  btnRemove.addEventListener('click', () => removeModel(model.id));
+  row.append(idx, media, details, qtyCol, priceCol, rm);
+  el.fileList.appendChild(row);
+}
+function reindex(){[...el.fileList.querySelectorAll('.file-row .idx')].forEach((n,i)=>n.textContent=String(i+1));}
+function field(label, input){const w=document.createElement('div'); w.className='field'; const l=document.createElement('label'); l.textContent=label; w.append(l,input); return {wrap:w,input};}
+function select(values, val){const s=document.createElement('select'); values.forEach(v=>{const o=document.createElement('option'); if(Array.isArray(v)){o.value=v[0]; o.textContent=v[1];} else{ o.value=v; o.textContent=v;} s.appendChild(o);}); s.value=val; return s;}
+function number(v,min,max,step){const n=document.createElement('input'); n.type='number'; n.className='number'; n.min=min; n.max=max; n.step=step; n.value=String(v); return n;}
 
-  return row;
+/* ---------------- Math / thumbnails ---------------- */
+function computeVolume(geo){
+  const a=geo.attributes.position.array; let v=0;
+  for(let i=0;i<a.length;i+=9){
+    const ax=a[i],ay=a[i+1],az=a[i+2], bx=a[i+3],by=a[i+4],bz=a[i+5], cx=a[i+6],cy=a[i+7],cz=a[i+8];
+    v += (ax*by*cz + bx*cy*az + cx*ay*bz - ax*cy*bz - bx*ay*cz - cx*by*az);
+  }
+  return Math.abs(v)/6;
+}
+async function makeThumb(geo){
+  const w=150,h=110; const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+  const r=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+  const scn=new THREE.Scene(); scn.background=new THREE.Color(0xffffff);
+  const d1=new THREE.DirectionalLight(0xffffff,0.9); d1.position.set(1,1,1);
+  const d2=new THREE.DirectionalLight(0xffffff,0.6); d2.position.set(-1,0.5,1);
+  const amb=new THREE.AmbientLight(0xffffff,0.35); scn.add(d1,d2,amb);
+  const cam=new THREE.PerspectiveCamera(50,w/h,0.1,10000);
+  const m=new THREE.Mesh(geo.clone(), new THREE.MeshStandardMaterial({color:0x222222,metalness:0.1,roughness:0.85}));
+  m.rotation.set(Math.PI/2,0,0); scn.add(m);
+  const box=new THREE.Box3().setFromObject(m), s=new THREE.Vector3(); box.getSize(s); const c=new THREE.Vector3(); box.getCenter(c);
+  const dist=Math.max(s.x,s.y,s.z)*2.6+12; cam.position.set(c.x+dist,c.y+dist,c.z+dist); cam.lookAt(c);
+  r.setSize(w,h,false); r.render(scn,cam); const url=canvas.toDataURL('image/png'); m.geometry.dispose(); m.material.dispose(); r.dispose(); return url;
 }
 
-function formatPrice(num) {
-  return `${num.toFixed(0)} ${CONFIG.currency}`;
+/* ---------------- Pricing ---------------- */
+function estimate(m){
+  const mat=MATERIALS[m.material];
+  const gramsSolid=(m.volume_mm3/1000)*mat.density_g_cm3;
+  const fill=SHELL_BASE+INFILL_PORTION*(m.infill/100);
+  const supp=m.supports==='yes'?SUPPORT_MASS_MULT:1.0;
+  const gramsPerPart=gramsSolid*fill*supp*CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
+  const gramsTotal=gramsPerPart*m.qty;
+
+  const speed=QUALITY_SPEED[m.quality];
+  const tMult=INFILL_TIME_MULT(m.infill)*SUPPORT_TIME_MULT(m.supports);
+  const minutesPerPart=(m.volume_mm3/speed)*tMult;
+  const minutesTotal=minutesPerPart*m.qty;
+
+  const materialCost=gramsTotal*mat.rate;
+  const printCost=(minutesTotal/60)*PRINT_RATE_PER_HOUR;
+  return {gramsTotal, minutesTotal, sub: materialCost+printCost, matBaseFee: mat.baseFee};
 }
 
-function updateModelFromRow(id, row) {
-  const model = state.models.find(m => m.id === id);
-  if (!model) return;
+function recalc(){
+  if(!models.length){ el.summary.innerHTML=''; el.grandTotal.innerHTML=''; el.download.disabled=true; info(); clearViewer(); return; }
+  let grams=0, minutes=0, subtotal=0, maxBase=0;
+  for(const m of models){
+    const e=estimate(m); grams+=e.gramsTotal; minutes+=e.minutesTotal; subtotal+=e.sub; maxBase=Math.max(maxBase,e.matBaseFee);
+    const cell=document.getElementById(`price-${m.id}`); if(cell) cell.textContent=String(Math.ceil(e.sub));
+  }
+  const parts=models.reduce((s,m)=>s+m.qty,0);
+  minutes += PREP_TIME_PER_JOB_MIN * (PREP_IS_PER_PART ? parts : 1);
+  const hours=minutes/60;
 
-  const mat = row.querySelector('.js-mat').value;
-  const infill = Number(row.querySelector('.js-infill').value) || 0;
-  const qty = Math.max(1, Number(row.querySelector('.js-qty').value) || 1);
+  let smallFee;
+  if(subtotal<=SMALL_FEE_THRESHOLD) smallFee=maxBase;
+  else { const reduction=((subtotal-SMALL_FEE_THRESHOLD)/SMALL_FEE_TAPER)*maxBase; smallFee=Math.max(maxBase-reduction,0); }
 
-  const pricing = calculatePricing({
-    volumeMm3: model.volumeMm3,
-    materialKey: mat,
-    infillPercent: infill
-  });
+  const total=Math.ceil(subtotal + smallFee);
+  el.summary.innerHTML=`
+    <li><span>Models</span><strong>${models.length} file(s), ${parts} part(s)</strong></li>
+    <li><span>Total used</span><strong>${round(grams,2)} g</strong></li>
+    <li><span>Total time</span><strong>${Math.floor(hours)} h ${Math.round((hours%1)*60)} m</strong></li>
+    <li><span>Printing fee</span><strong>${round(subtotal,2)} THB</strong></li>
+    <li><span>Small order fee (max)</span><strong>${round(smallFee,2)} THB</strong></li>`;
+  el.grandTotal.innerHTML=`<div class="total"><h2>Total price: ${total} THB</h2></div>`;
+  el.download.disabled=false;
 
-  model.material = mat;
-  model.infill = infill;
-  model.qty = qty;
-  model.volumeCm3 = pricing.volumeCm3;
-  model.printWeightG = pricing.printWeightG;
-  model.unitPrice = pricing.unitPrice;
-  model.lineTotal = pricing.unitPrice * qty;
+  el.download.onclick=()=>{
+    const payload={items:models.map(m=>({file:m.name,qty:m.qty,material:m.material,quality:m.quality,infill:m.infill,supports:m.supports})),
+      totals:{files:models.length,parts,grams:round(grams,2),minutes:Math.round(minutes)},
+      costs:{subtotal:round(subtotal,2),smallOrderFee:round(smallFee,2),finalPrice:total}};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='quote.json'; a.click(); URL.revokeObjectURL(url);
+  };
 
-  row.querySelector('.q-file-meta').textContent =
-    `${model.volumeCm3.toFixed(2)} cm³ • ${model.printWeightG.toFixed(1)} g`;
-  row.querySelector('.js-price').textContent = formatPrice(model.lineTotal);
-
-  renderSummary();
+  info(); applyI18N();
 }
 
-function removeModel(id) {
-  state.models = state.models.filter(m => m.id !== id);
-  const row = dom.fileList.querySelector(`.q-list-row[data-id="${id}"]`);
-  if (row) row.remove();
-  // reindex
-  state.models.forEach((m, i) => {
-    m.index = i + 1;
-    const rowEl = dom.fileList.querySelector(`.q-list-row[data-id="${m.id}"] > div:first-child`);
-    if (rowEl) rowEl.textContent = m.index;
-  });
-  renderSummary();
-  if (state.models.length === 0) renderEmptyState(true);
-}
-
-function renderSummary() {
-  dom.summaryList.innerHTML = '';
-  let total = 0;
-  state.models.forEach(m => {
-    total += m.lineTotal;
-    const li = document.createElement('li');
-    li.className = 'q-summary-item';
-    li.textContent = `${m.qty}× ${m.name} — ${formatPrice(m.lineTotal)}`;
-    dom.summaryList.appendChild(li);
-  });
-
-  dom.grandTotal.textContent = state.models.length
-    ? `Total: ${formatPrice(total)}`
-    : 'No items';
-
-  dom.downloadBtn.disabled = state.models.length === 0;
-}
-
-// =========================
-// 4. FILE HANDLING
-// =========================
-function handleFiles(fileList) {
-  const loader = new STLLoader();
-  Array.from(fileList).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const arrayBuffer = e.target.result;
-      const geometry = loader.parse(arrayBuffer);
-      geometry.computeVertexNormals();
-
-      const volumeMm3 = computeVolumeMm3(geometry);
-
-      const pricing = calculatePricing({
-        volumeMm3,
-        materialKey: CONFIG.defaultMaterial,
-        infillPercent: 20
-      });
-
-      const model = {
-        id: crypto.randomUUID ? crypto.randomUUID() : `m-${Date.now()}-${Math.random()}`,
-        index: state.models.length + 1,
-        name: file.name,
-        volumeMm3,
-        volumeCm3: pricing.volumeCm3,
-        printWeightG: pricing.printWeightG,
-        material: CONFIG.defaultMaterial,
-        infill: 20,
-        layerHeight: 0.2,
-        qty: 1,
-        unitPrice: pricing.unitPrice,
-        lineTotal: pricing.unitPrice * 1
-      };
-
-      state.models.push(model);
-      const row = createModelRow(model);
-      dom.fileList.appendChild(row);
-      renderEmptyState(false);
-      renderSummary();
-      showGeometry(geometry);
-
-      dom.fileInfo.textContent = `Loaded ${file.name} • ${model.volumeCm3.toFixed(2)} cm³ • ${model.printWeightG.toFixed(1)} g`;
-    };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function setupDnD() {
-  dom.dropZone.addEventListener('dragover', e => {
-    e.preventDefault();
-    dom.dropZone.classList.add('is-dragover');
-  });
-  dom.dropZone.addEventListener('dragleave', e => {
-    dom.dropZone.classList.remove('is-dragover');
-  });
-  dom.dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dom.dropZone.classList.remove('is-dragover');
-    if (e.dataTransfer.files.length) {
-      handleFiles(e.dataTransfer.files);
-    }
-  });
-  dom.fileInput.addEventListener('change', e => {
-    if (e.target.files.length) handleFiles(e.target.files);
-  });
-  dom.addMoreBtn.addEventListener('click', () => dom.fileInput.click());
-}
-
-// =========================
-// 5. DOWNLOAD JSON
-// =========================
-function setupDownload() {
-  dom.downloadBtn.addEventListener('click', () => {
-    const payload = {
-      date: new Date().toISOString().slice(0, 10),
-      currency: CONFIG.currency,
-      items: state.models.map(m => ({
-        name: m.name,
-        volume_mm3: m.volumeMm3,
-        volume_cm3: m.volumeCm3,
-        weight_g: m.printWeightG,
-        material: m.material,
-        infill: m.infill,
-        qty: m.qty,
-        unit_price: m.unitPrice,
-        line_total: m.lineTotal
-      })),
-      subtotal: state.models.reduce((s, m) => s + m.lineTotal, 0)
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `quote-${payload.date}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-}
-
-// =========================
-// INIT
-// =========================
-initViewer();
-setupDnD();
-setupDownload();
-renderEmptyState(true);
+/* ---------------- Helpers ---------------- */
+function info(){ el.fileInfo.textContent = models.length ? `Total models: ${models.length}` : ''; }
+function round(n,d){ return Math.round(n*10**d)/10**d; }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
