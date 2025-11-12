@@ -300,22 +300,26 @@ async function makeThumb(geo){
 }
 
 /* ---------- Pricing ---------- */
-function estimate(m){
-  const mat=MATERIALS[m.material];
-  const gramsSolid=(m.volume_mm3/1000)*mat.density_g_cm3;
-  const fill=SHELL_BASE+INFILL_PORTION*(m.infill/100);
-  const supp=m.supports==='yes'?SUPPORT_MASS_MULT:1.0;
-  const gramsPerPart=gramsSolid*fill*supp*CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
-  const gramsTotal=gramsPerPart*m.qty;
+function estimate(m) {
+  const mat = MATERIALS[m.material];
+  const gramsSolid = (m.volume_mm3 / 1000) * mat.density_g_cm3;
+  const fill = SHELL_BASE + INFILL_PORTION * (m.infill / 100);
+  const supp = m.supports === 'yes' ? SUPPORT_MASS_MULT : 1.0;
 
-  const speed=QUALITY_SPEED[m.quality];
-  const tMult=INFILL_TIME_MULT(m.infill)*SUPPORT_TIME_MULT(m.supports);
-  const minutesPerPart=(m.volume_mm3/speed)*tMult;
-  const minutesTotal=minutesPerPart*m.qty;
+  // --- Normal calculation + 25% buffer ---
+  const rawGramsPerPart = gramsSolid * fill * supp * CALIBRATION_MULT + WASTE_GRAMS_PER_PART;
+  const gramsPerPart = rawGramsPerPart * 1.25; // +25% buffer
+  const gramsTotal = gramsPerPart * m.qty;
 
-  const materialCost=gramsTotal*mat.rate;
-  const printCost=(minutesTotal/60)*PRINT_RATE_PER_HOUR;
-  return {gramsTotal, minutesTotal, sub: materialCost+printCost, matBaseFee: mat.baseFee};
+  const speed = QUALITY_SPEED[m.quality];
+  const tMult = INFILL_TIME_MULT(m.infill) * SUPPORT_TIME_MULT(m.supports);
+  const minutesPerPart = (m.volume_mm3 / speed) * tMult;
+  const minutesTotal = minutesPerPart * m.qty;
+
+  const materialCost = gramsTotal * mat.rate;
+  const printCost = (minutesTotal / 60) * PRINT_RATE_PER_HOUR;
+
+  return { gramsTotal, minutesTotal, sub: materialCost + printCost, matBaseFee: mat.baseFee };
 }
 
 function recalc(){
