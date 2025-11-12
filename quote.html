@@ -19,8 +19,11 @@
   <!-- Header -->
   <header class="q-header">
     <div class="q-brand">
-      <div class="q-logo">Logo</div>
-      <div class="q-name" data-i18n="brand">Desaii</div>
+      <div class="q-logo">
+        <img src="Desaii_logo.png" alt="Desaii logo" />
+      </div>
+      <!-- fixed text, no translation -->
+      <div class="q-name">Desaii</div>
     </div>
     <nav class="q-nav">
       <a href="index.html" class="q-nav-link" data-i18n="home">Home</a>
@@ -44,8 +47,7 @@
           <div class="q-drop-inner drop--bw">
             <div class="q-drop-title" data-i18n="draghere">Drag & drop STL</div>
             <div class="q-drop-or" data-i18n="or">or</div>
-            <!-- Give this label an ID so only this triggers browse -->
-            <label id="browseBtn" for="stlFile" class="q-btn q-btn--ghost" data-i18n="browse">Browse files</label>
+            <label for="stlFile" class="q-btn q-btn--ghost" data-i18n="browse">Browse files</label>
             <input id="stlFile" type="file" accept=".stl" multiple hidden />
           </div>
         </div>
@@ -81,14 +83,6 @@
     <section class="q-panel">
       <div class="q-panel-title" data-i18n="quotation">Quotation</div>
       <ul id="summaryList" class="q-summary"></ul>
-
-      <!-- Discount box -->
-      <div class="q-discount-box">
-        <input id="discountCode" type="text" placeholder="Discount code" class="q-input" />
-        <button id="applyDiscount" class="q-btn q-btn--ghost">Apply</button>
-      </div>
-      <div id="discountInfo" class="q-info"></div>
-
       <div id="grandTotal" class="q-total"></div>
       <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
         Download JSON
@@ -98,9 +92,9 @@
 
   <script type="module" src="script.js"></script>
   <script>
-    // Only the Browse button inside the dropzone should open the file picker.
+    // make label clickable
     document.addEventListener('click', e => {
-      if (e.target.closest('#browseBtn')) {
+      if (e.target.closest('.q-btn--ghost') && !e.target.closest('#addMoreBtn')) {
         e.preventDefault();
         document.getElementById('stlFile')?.click();
       }
