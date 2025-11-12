@@ -83,9 +83,15 @@
     <section class="q-panel">
       <div class="q-panel-title" data-i18n="quotation">Quotation</div>
       <ul id="summaryList" class="q-summary"></ul>
-      <div id="grandTotal" class="q-total"></div>
-      <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
-        Download JSON
+        <div class="q-discount-box">
+          <input id="discountCode" type="text" placeholder="Discount code" class="q-input" />
+          <button id="applyDiscount" class="q-btn q-btn--ghost">Apply</button>
+        </div>
+        <div id="discountInfo" class="q-info"></div>
+        <div id="grandTotal" class="q-total"></div>
+        <button id="downloadQuote" class="q-btn q-btn--black" disabled data-i18n="download">
+          Download JSON
+        </button>
       </button>
     </section>
   </main>
